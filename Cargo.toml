@@ -1,0 +1,24 @@
+[package]
+name = "bar-lyrics"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+description = "Synchronized lyrics bridge for desktop bars"
+
+[[bin]]
+name = "bar-lyrics"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+unicode-segmentation = "1.12"
+ureq = { version = "3.4", default-features = false, features = ["json", "native-tls"] }
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = "z"
+panic = "abort"
+strip = "symbols"

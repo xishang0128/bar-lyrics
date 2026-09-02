@@ -1,0 +1,151 @@
+id = "xishang0128/bar-lyrics"
+name = "Bar Lyrics"
+version = "0.1.0"
+plugin_api = 26
+author = "xishang0128"
+license = "MIT"
+icon = "music"
+description = "Single-line synchronized lyrics for the Noctalia bar."
+tags = ["bar", "music"]
+dependencies = []
+
+[[setting]]
+key = "base_url"
+type = "string"
+label_key = "settings.base_url.label"
+description_key = "settings.base_url.description"
+default = "http://127.0.0.1:14558"
+
+[[setting]]
+key = "poll_interval_ms"
+type = "int"
+label_key = "settings.poll_interval.label"
+description_key = "settings.poll_interval.description"
+default = 250
+min = 100
+max = 2000
+advanced = true
+
+[[setting]]
+key = "offset_ms"
+type = "int"
+label_key = "settings.offset.label"
+description_key = "settings.offset.description"
+default = 0
+min = -10000
+max = 10000
+
+[[service]]
+id = "bridge"
+entry = "service.luau"
+
+[[widget]]
+id = "lyrics"
+entry = "widget.luau"
+
+  [widget.actions]
+  left = "panel-toggle control-center media"
+  right = "media toggle"
+  back = "media previous"
+  forward = "media next"
+  scroll_up = "media previous"
+  scroll_down = "media next"
+
+  [[widget.setting]]
+  key = "max_chars"
+  type = "int"
+  label_key = "settings.max_chars.label"
+  description_key = "settings.max_chars.description"
+  default = 32
+  min = 12
+  max = 80
+
+  [[widget.setting]]
+  key = "fallback"
+  type = "select"
+  label_key = "settings.fallback.label"
+  description_key = "settings.fallback.description"
+  default = "track"
+  options = [
+    { value = "track", label_key = "settings.fallback.track" },
+    { value = "hidden", label_key = "settings.fallback.hidden" },
+  ]
+
+  [[widget.setting]]
+  key = "show_when_paused"
+  type = "bool"
+  label_key = "settings.show_when_paused.label"
+  description_key = "settings.show_when_paused.description"
+  default = true
+
+  [[widget.setting]]
+  key = "show_cover"
+  type = "bool"
+  label_key = "settings.show_cover.label"
+  description_key = "settings.show_cover.description"
+  default = true
+
+  [[widget.setting]]
+  key = "cover_position"
+  type = "select"
+  label_key = "settings.cover_position.label"
+  description_key = "settings.cover_position.description"
+  default = "right"
+  options = [
+    { value = "left", label_key = "settings.cover_position.left" },
+    { value = "right", label_key = "settings.cover_position.right" },
+  ]
+  visible_when = { key = "show_cover", values = ["true"] }
+
+  [[widget.setting]]
+  key = "cover_size"
+  type = "int"
+  label_key = "settings.cover_size.label"
+  default = 24
+  min = 16
+  max = 48
+  visible_when = { key = "show_cover", values = ["true"] }
+
+  [[widget.setting]]
+  key = "cover_radius"
+  type = "int"
+  label_key = "settings.cover_radius.label"
+  default = 5
+  min = 0
+  max = 24
+  visible_when = { key = "show_cover", values = ["true"] }
+
+  [[widget.setting]]
+  key = "show_glyph"
+  type = "bool"
+  label_key = "settings.show_glyph.label"
+  description_key = "settings.show_glyph.description"
+  default = false
+
+  [[widget.setting]]
+  key = "glyph"
+  type = "glyph"
+  label_key = "settings.glyph.label"
+  default = "music"
+  visible_when = { key = "show_glyph", values = ["true"] }
+
+  [[widget.setting]]
+  key = "active_color"
+  type = "color"
+  label_key = "settings.active_color.label"
+  default = "on_surface"
+
+  [[widget.setting]]
+  key = "inactive_color"
+  type = "color"
+  label_key = "settings.inactive_color.label"
+  default = "on_surface_variant"
+
+  [[widget.setting]]
+  key = "inactive_opacity"
+  type = "int"
+  label_key = "settings.inactive_opacity.label"
+  description_key = "settings.inactive_opacity.description"
+  default = 45
+  min = 10
+  max = 90

@@ -1,0 +1,174 @@
+use serde::Serialize;
+use unicode_segmentation::UnicodeSegmentation;
+
+use crate::model::LyricLine;
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub(crate) struct TextSegment {
+    text: String,
+    active: bool,
+}
+
+#[derive(Clone)]
+struct DisplayGrapheme {
+    text: String,
+    active: bool,
+}
+
+struct TimedGrapheme {
+    text: String,
+    start_ms: i64,
+    end_ms: i64,
+}
+
+pub(crate) fn display_segments(
+    line: &LyricLine,
+    position_ms: i64,
+    word_synced: bool,
+    max_chars: usize,
+    align_end: bool,
+) -> Option<Vec<TextSegment>> {
+    let timed = if word_synced {
+        timed_graphemes(line)
+    } else {
+        Vec::new()
+    };
+    let (mut graphemes, active_index) = if !timed.is_empty() {
+        let active_index = timed
+            .iter()
+            .position(|item| position_ms < item.end_ms)
+            .unwrap_or(timed.len());
+        let graphemes = timed
+            .into_iter()
+            .map(|item| DisplayGrapheme {
+                active: position_ms >= item.start_ms,
+                text: item.text,
+            })
+            .collect::<Vec<_>>();
+        (graphemes, Some(active_index))
+    } else {
+        (plain_graphemes(line), None)
+    };
+
+    if graphemes.is_empty() {
+        return None;
+    }
+    if let Some(active_index) = active_index {
+        crop_synced(&mut graphemes, active_index, max_chars);
+    } else {
+        crop_plain(&mut graphemes, max_chars, align_end);
+    }
+    Some(merge_segments(graphemes))
+}
+
+pub(crate) fn truncate_text(text: &str, max_chars: usize) -> String {
+    let mut graphemes = UnicodeSegmentation::graphemes(text, true)
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    if graphemes.len() > max_chars {
+        graphemes.truncate(max_chars);
+        graphemes[max_chars - 1] = "…".to_owned();
+    }
+    graphemes.concat()
+}
+
+fn line_text(line: &LyricLine) -> String {
+    if line.text.is_empty() {
+        line.words.iter().map(|word| word.word.as_str()).collect()
+    } else {
+        line.text.clone()
+    }
+}
+
+fn plain_graphemes(line: &LyricLine) -> Vec<DisplayGrapheme> {
+    UnicodeSegmentation::graphemes(line_text(line).as_str(), true)
+        .map(|text| DisplayGrapheme {
+            text: text.to_owned(),
+            active: true,
+        })
+        .collect()
+}
+
+fn timed_graphemes(line: &LyricLine) -> Vec<TimedGrapheme> {
+    let mut result = Vec::new();
+    for word in &line.words {
+        append_timed_text(&mut result, &word.word, word.start_time, word.end_time);
+    }
+    result
+}
+
+fn append_timed_text(result: &mut Vec<TimedGrapheme>, text: &str, start_ms: i64, end_ms: i64) {
+    let graphemes = UnicodeSegmentation::graphemes(text, true).collect::<Vec<_>>();
+    let count = graphemes.len() as i64;
+    if count == 0 {
+        return;
+    }
+
+    let duration = (end_ms - start_ms).max(0);
+    for (index, grapheme) in graphemes.into_iter().enumerate() {
+        let index = index as i64;
+        let start = start_ms + duration * index / count;
+        let end = start_ms + duration * (index + 1) / count;
+        result.push(TimedGrapheme {
+            text: grapheme.to_owned(),
+            start_ms: start,
+            end_ms: end.max(start + 1),
+        });
+    }
+}
+
+fn crop_synced(graphemes: &mut Vec<DisplayGrapheme>, active_index: usize, max_chars: usize) {
+    if graphemes.len() <= max_chars {
+        return;
+    }
+
+    let first = active_index
+        .saturating_sub(max_chars / 2)
+        .min(graphemes.len() - max_chars);
+    let clipped_right = first + max_chars < graphemes.len();
+    *graphemes = graphemes[first..first + max_chars].to_vec();
+    if first > 0 {
+        graphemes[0] = DisplayGrapheme {
+            text: "…".to_owned(),
+            active: true,
+        };
+    }
+    if clipped_right {
+        graphemes[max_chars - 1] = DisplayGrapheme {
+            text: "…".to_owned(),
+            active: false,
+        };
+    }
+}
+
+fn crop_plain(graphemes: &mut Vec<DisplayGrapheme>, max_chars: usize, align_end: bool) {
+    if graphemes.len() <= max_chars {
+        return;
+    }
+
+    if align_end {
+        *graphemes = graphemes[graphemes.len() - max_chars..].to_vec();
+        graphemes[0].text = "…".to_owned();
+    } else {
+        graphemes.truncate(max_chars);
+        graphemes[max_chars - 1].text = "…".to_owned();
+    }
+}
+
+fn merge_segments(graphemes: Vec<DisplayGrapheme>) -> Vec<TextSegment> {
+    let mut segments: Vec<TextSegment> = Vec::new();
+    for grapheme in graphemes {
+        if let Some(segment) = segments
+            .last_mut()
+            .filter(|segment| segment.active == grapheme.active)
+        {
+            segment.text.push_str(&grapheme.text);
+        } else {
+            segments.push(TextSegment {
+                text: grapheme.text,
+                active: grapheme.active,
+            });
+        }
+    }
+    segments
+}
