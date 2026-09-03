@@ -8,18 +8,22 @@ use crate::model::{LyricLine, LyricWord, LyricsSnapshot, PlaybackSnapshot, Track
 
 pub(super) struct SPlayer {
     base_url: String,
+    agent: ureq::Agent,
 }
 
 impl SPlayer {
     pub(super) fn new(base_url: &str) -> Self {
         Self {
             base_url: base_url.to_owned(),
+            agent: ureq::Agent::new_with_defaults(),
         }
     }
 
     fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, String> {
         let url = format!("{}{path}", self.base_url);
-        let mut response = ureq::get(&url)
+        let mut response = self
+            .agent
+            .get(&url)
             .call()
             .map_err(|error| format!("GET {url}: {error}"))?;
         response
