@@ -29,10 +29,13 @@ end
 local function lineNode(line)
   local nodes = {}
   for index, segment in ipairs(line.segments or {}) do
+    local progress = math.max(0, math.min(1,
+      tonumber(segment.progress) or (segment.active and 1 or 0)
+    ))
     nodes[index] = label(
       segment.text or "",
-      segment.active and activeColor or inactiveColor,
-      segment.active and 1 or inactiveOpacity,
+      progress > 0 and activeColor or inactiveColor,
+      inactiveOpacity + (1 - inactiveOpacity) * progress,
       "segment-" .. tostring(index)
     )
   end

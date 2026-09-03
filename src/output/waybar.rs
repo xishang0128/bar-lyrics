@@ -149,11 +149,11 @@ fn markup_segments(frame: &Frame, inactive_opacity: u8) -> String {
     };
     for segment in segments {
         let text = escape_markup(segment.as_str());
-        let opacity = if segment.is_active() {
-            active_opacity
-        } else {
-            ((u16::from(active_opacity) * u16::from(inactive_opacity)) / 100) as u8
-        };
+        let lyric_opacity = f64::from(inactive_opacity)
+            + (100.0 - f64::from(inactive_opacity)) * segment.progress();
+        let opacity = (f64::from(active_opacity) * lyric_opacity / 100.0)
+            .round()
+            .clamp(1.0, 100.0) as u8;
         if opacity >= 100 && rise == 0 {
             markup.push_str(&text);
         } else {

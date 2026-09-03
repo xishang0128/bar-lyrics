@@ -7,6 +7,7 @@ use crate::model::LyricLine;
 pub(crate) struct TextSegment {
     text: String,
     active: bool,
+    progress: f64,
 }
 
 impl TextSegment {
@@ -17,12 +18,17 @@ impl TextSegment {
     pub(crate) fn is_active(&self) -> bool {
         self.active
     }
+
+    pub(crate) fn progress(&self) -> f64 {
+        self.progress
+    }
 }
 
 #[derive(Clone)]
 struct DisplayGrapheme {
     text: String,
     active: bool,
+    progress: f64,
 }
 
 struct TimedGrapheme {
@@ -52,6 +58,7 @@ pub(crate) fn display_segments(
             .into_iter()
             .map(|item| DisplayGrapheme {
                 active: position_ms >= item.start_ms,
+                progress: timed_progress(position_ms, item.start_ms, item.end_ms),
                 text: item.text,
             })
             .collect::<Vec<_>>();
@@ -95,8 +102,14 @@ fn plain_graphemes(line: &LyricLine) -> Vec<DisplayGrapheme> {
         .map(|text| DisplayGrapheme {
             text: text.to_owned(),
             active: true,
+            progress: 1.0,
         })
         .collect()
+}
+
+fn timed_progress(position_ms: i64, start_ms: i64, end_ms: i64) -> f64 {
+    let duration = (end_ms - start_ms).max(1) as f64;
+    ((position_ms - start_ms) as f64 / duration).clamp(0.0, 1.0)
 }
 
 fn timed_graphemes(line: &LyricLine) -> Vec<TimedGrapheme> {
@@ -141,12 +154,14 @@ fn crop_synced(graphemes: &mut Vec<DisplayGrapheme>, active_index: usize, max_ch
         graphemes[0] = DisplayGrapheme {
             text: "…".to_owned(),
             active: true,
+            progress: 1.0,
         };
     }
     if clipped_right {
         graphemes[max_chars - 1] = DisplayGrapheme {
             text: "…".to_owned(),
             active: false,
+            progress: 0.0,
         };
     }
 }
@@ -168,15 +183,15 @@ fn crop_plain(graphemes: &mut Vec<DisplayGrapheme>, max_chars: usize, align_end:
 fn merge_segments(graphemes: Vec<DisplayGrapheme>) -> Vec<TextSegment> {
     let mut segments: Vec<TextSegment> = Vec::new();
     for grapheme in graphemes {
-        if let Some(segment) = segments
-            .last_mut()
-            .filter(|segment| segment.active == grapheme.active)
-        {
+        if let Some(segment) = segments.last_mut().filter(|segment| {
+            segment.active == grapheme.active && segment.progress == grapheme.progress
+        }) {
             segment.text.push_str(&grapheme.text);
         } else {
             segments.push(TextSegment {
                 text: grapheme.text,
                 active: grapheme.active,
+                progress: grapheme.progress,
             });
         }
     }
