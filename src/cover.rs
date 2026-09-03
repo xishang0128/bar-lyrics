@@ -13,14 +13,15 @@ struct CoverResult {
 
 pub(crate) struct CoverCache {
     directory: Option<PathBuf>,
+    current_file: Option<PathBuf>,
     request_tx: Option<Sender<String>>,
     result_rx: Option<Receiver<CoverResult>>,
-    requested_url: String,
+    requested_url: Option<String>,
     path: String,
 }
 
 impl CoverCache {
-    pub(crate) fn new(directory: Option<PathBuf>) -> Self {
+    pub(crate) fn new(directory: Option<PathBuf>, current_file: Option<PathBuf>) -> Self {
         let (request_tx, result_rx) = if let Some(worker_dir) = directory.clone() {
             let (request_tx, request_rx) = mpsc::channel();
             let (result_tx, result_rx) = mpsc::channel();
@@ -31,38 +32,48 @@ impl CoverCache {
         };
         Self {
             directory,
+            current_file,
             request_tx,
             result_rx,
-            requested_url: String::new(),
+            requested_url: None,
             path: String::new(),
         }
     }
 
     pub(crate) fn set_url(&mut self, url: &str) {
         self.poll();
-        if url == self.requested_url {
+        if self.requested_url.as_deref() == Some(url) {
             return;
         }
-        self.requested_url = url.to_owned();
-        self.path.clear();
-        if url.is_empty() || self.directory.is_none() {
+        self.requested_url = Some(url.to_owned());
+        if url.is_empty() {
+            self.path.clear();
+            self.clear_current();
             return;
         }
         if url.starts_with("file://") || Path::new(url).is_absolute() {
             if let Some(path) = local_path(url) {
-                self.path = path;
+                self.set_path(path);
+            } else {
+                self.path.clear();
+                self.clear_current();
             }
             return;
         }
 
         let Some(directory) = &self.directory else {
+            self.path.clear();
+            self.clear_current();
             return;
         };
         let destination = cache_path(directory, url);
         if destination.is_file() {
-            self.path = destination.to_string_lossy().into_owned();
+            self.set_path(destination.to_string_lossy().into_owned());
         } else if let Some(request_tx) = &self.request_tx {
             let _ = request_tx.send(url.to_owned());
+        } else {
+            self.path.clear();
+            self.clear_current();
         }
     }
 
@@ -72,15 +83,64 @@ impl CoverCache {
     }
 
     fn poll(&mut self) {
-        let Some(result_rx) = &self.result_rx else {
-            return;
-        };
-        while let Ok(result) = result_rx.try_recv() {
-            if result.url == self.requested_url {
-                self.path = result.path;
+        while let Some(result) = self
+            .result_rx
+            .as_ref()
+            .and_then(|result_rx| result_rx.try_recv().ok())
+        {
+            if self.requested_url.as_deref() == Some(result.url.as_str()) {
+                self.set_path(result.path);
             }
         }
     }
+
+    fn set_path(&mut self, path: String) {
+        if path.is_empty() {
+            self.path.clear();
+            self.clear_current();
+            return;
+        }
+        if let Some(current_file) = &self.current_file {
+            if let Err(error) = publish_current(Path::new(&path), current_file) {
+                eprintln!("bar-lyrics: current cover: {error}");
+            }
+        }
+        self.path = path;
+    }
+
+    fn clear_current(&self) {
+        let Some(current_file) = &self.current_file else {
+            return;
+        };
+        if let Err(error) = fs::remove_file(current_file) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                eprintln!("bar-lyrics: current cover: {error}");
+            }
+        }
+    }
+}
+
+fn publish_current(source: &Path, destination: &Path) -> Result<(), String> {
+    if source == destination {
+        return Ok(());
+    }
+    if let Some(parent) = destination
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let file_name = destination
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy();
+    let temporary = destination.with_file_name(format!(".{file_name}.{}.part", std::process::id()));
+    fs::copy(source, &temporary).map_err(|error| error.to_string())?;
+    if let Err(error) = fs::rename(&temporary, destination) {
+        let _ = fs::remove_file(&temporary);
+        return Err(error.to_string());
+    }
+    Ok(())
 }
 
 fn download_worker(

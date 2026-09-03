@@ -9,6 +9,16 @@ pub(crate) struct TextSegment {
     active: bool,
 }
 
+impl TextSegment {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.text
+    }
+
+    pub(crate) fn is_active(&self) -> bool {
+        self.active
+    }
+}
+
 #[derive(Clone)]
 struct DisplayGrapheme {
     text: String,

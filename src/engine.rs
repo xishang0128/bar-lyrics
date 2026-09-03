@@ -10,6 +10,16 @@ use crate::source::Source;
 
 const LINE_TRANSITION_MAX_LEAD_MS: i64 = 320;
 
+pub(crate) enum TextDisplay<'a> {
+    Static(&'a [lyrics::TextSegment]),
+    Transition {
+        outgoing: &'a [lyrics::TextSegment],
+        outgoing_opacity: f64,
+        incoming: &'a [lyrics::TextSegment],
+        incoming_opacity: f64,
+    },
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 struct DisplayLine {
     key: String,
@@ -39,6 +49,61 @@ pub(crate) struct Frame {
 }
 
 impl Frame {
+    pub(crate) fn display_text(&self) -> String {
+        self.fallback_text.clone()
+    }
+
+    pub(crate) fn text_display(&self) -> TextDisplay<'_> {
+        if let Some(transition) = &self.transition {
+            if let Some(line) = &self.line {
+                return TextDisplay::Transition {
+                    outgoing: &transition.outgoing.segments,
+                    outgoing_opacity: transition.outgoing_opacity,
+                    incoming: &line.segments,
+                    incoming_opacity: transition.incoming_opacity,
+                };
+            }
+        }
+        TextDisplay::Static(
+            self.line
+                .as_ref()
+                .map(|line| line.segments.as_slice())
+                .unwrap_or_default(),
+        )
+    }
+
+    pub(crate) fn is_visible(&self) -> bool {
+        self.visible
+    }
+
+    pub(crate) fn is_playing(&self) -> bool {
+        self.playing
+    }
+
+    pub(crate) fn has_lyrics(&self) -> bool {
+        self.line.is_some()
+    }
+
+    pub(crate) fn is_transitioning(&self) -> bool {
+        self.transition.is_some()
+    }
+
+    pub(crate) fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub(crate) fn artist(&self) -> &str {
+        &self.artist
+    }
+
+    pub(crate) fn source(&self) -> &str {
+        &self.source
+    }
+
+    pub(crate) fn cover_path(&self) -> &str {
+        &self.cover_path
+    }
+
     fn hidden(alignment: Alignment) -> Self {
         Self {
             visible: false,
@@ -121,7 +186,11 @@ pub(crate) struct Engine {
 }
 
 impl Engine {
-    pub(crate) fn new(source: Box<dyn Source>, cover_dir: Option<std::path::PathBuf>) -> Self {
+    pub(crate) fn new(
+        source: Box<dyn Source>,
+        cover_dir: Option<std::path::PathBuf>,
+        current_cover: Option<std::path::PathBuf>,
+    ) -> Self {
         Self {
             source,
             playback: None,
@@ -129,7 +198,7 @@ impl Engine {
             lyrics: Vec::new(),
             lyrics_word_synced: false,
             lyrics_source: String::new(),
-            cover_cache: CoverCache::new(cover_dir),
+            cover_cache: CoverCache::new(cover_dir, current_cover),
         }
     }
 

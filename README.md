@@ -24,6 +24,16 @@ noctalia msg plugins enable xishang0128/bar-lyrics
 在 Noctalia Bar 中添加 `xishang0128/bar-lyrics:lyrics` widget。默认 API 地址为
 `http://127.0.0.1:14558`。
 
+### Waybar
+
+先安装二进制：
+
+```bash
+install -Dm755 target/release/bar-lyrics ~/.local/bin/bar-lyrics
+```
+
+配置、样式和左右对齐方式见 [`examples/waybar`](examples/waybar/README.md)。
+
 ## 目录
 
 ```text

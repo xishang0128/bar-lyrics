@@ -5,9 +5,10 @@ use std::time::Duration;
 use serde::Serialize;
 
 const USAGE: &str = "Usage: bar-lyrics [--source splayer] [--source-endpoint URL] \
-                    [--output json] [--poll-ms N] \
+                    [--output json|waybar] [--poll-ms N] \
                     [--offset-ms N] [--max-chars N] [--align start|end] \
-                    [--cover-dir PATH] [--once]";
+                    [--inactive-opacity N] [--cover-dir PATH] \
+                    [--current-cover PATH] [--waybar-signal N] [--once]";
 
 #[derive(Clone, Copy)]
 pub(crate) enum SourceKind {
@@ -17,6 +18,7 @@ pub(crate) enum SourceKind {
 #[derive(Clone, Copy)]
 pub(crate) enum OutputKind {
     Json,
+    Waybar,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -40,7 +42,10 @@ pub(crate) struct Options {
     pub(crate) offset_ms: i64,
     pub(crate) max_chars: usize,
     pub(crate) alignment: Alignment,
+    pub(crate) inactive_opacity: u8,
     pub(crate) cover_dir: Option<PathBuf>,
+    pub(crate) current_cover: Option<PathBuf>,
+    pub(crate) waybar_signal: Option<u8>,
     pub(crate) once: bool,
 }
 
@@ -54,7 +59,10 @@ impl Default for Options {
             offset_ms: 0,
             max_chars: 32,
             alignment: Alignment::Start,
+            inactive_opacity: 45,
             cover_dir: None,
+            current_cover: None,
+            waybar_signal: None,
             once: false,
         }
     }
@@ -79,7 +87,8 @@ pub(crate) fn parse() -> Result<Options, String> {
             "--output" => {
                 options.output = match args.next().as_deref() {
                     Some("json") => OutputKind::Json,
-                    _ => return Err("--output needs json".to_owned()),
+                    Some("waybar") => OutputKind::Waybar,
+                    _ => return Err("--output needs json or waybar".to_owned()),
                 };
             }
             "--poll-ms" => {
@@ -103,10 +112,30 @@ pub(crate) fn parse() -> Result<Options, String> {
                     _ => return Err("--align needs start or end".to_owned()),
                 };
             }
+            "--inactive-opacity" => {
+                let value = args.next().ok_or("--inactive-opacity needs a value")?;
+                let opacity = value
+                    .parse::<u8>()
+                    .map_err(|_| "invalid --inactive-opacity")?;
+                options.inactive_opacity = opacity.clamp(10, 90);
+            }
             "--cover-dir" => {
                 options.cover_dir = Some(PathBuf::from(
                     args.next().ok_or("--cover-dir needs a path")?,
                 ));
+            }
+            "--current-cover" => {
+                options.current_cover = Some(PathBuf::from(
+                    args.next().ok_or("--current-cover needs a path")?,
+                ));
+            }
+            "--waybar-signal" => {
+                let value = args.next().ok_or("--waybar-signal needs a value")?;
+                let signal = value.parse::<u8>().map_err(|_| "invalid --waybar-signal")?;
+                if !(1..=30).contains(&signal) {
+                    return Err("--waybar-signal needs a value from 1 to 30".to_owned());
+                }
+                options.waybar_signal = Some(signal);
             }
             "-h" | "--help" => {
                 println!("{USAGE}");

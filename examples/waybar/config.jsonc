@@ -1,0 +1,19 @@
+{
+  "modules-center": ["custom/bar-lyrics", "image#bar-lyrics-cover"],
+
+  "custom/bar-lyrics": {
+    "exec": "exec $HOME/.local/bin/bar-lyrics --source splayer --source-endpoint http://127.0.0.1:14558 --output waybar --poll-ms 250 --max-chars 32 --align start --inactive-opacity 45 --cover-dir \"${XDG_CACHE_HOME:-$HOME/.cache}/bar-lyrics/covers\" --current-cover /run/user/1000/bar-lyrics-cover --waybar-signal 8",
+    "return-type": "json",
+    "restart-interval": 2,
+    "hide-empty-text": true,
+    "escape": false
+  },
+
+  "image#bar-lyrics-cover": {
+    "path": "/run/user/1000/bar-lyrics-cover",
+    "size": 24,
+    "interval": "once",
+    "signal": 8,
+    "tooltip": false
+  }
+}

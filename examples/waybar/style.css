@@ -1,0 +1,16 @@
+#custom-bar-lyrics {
+  padding: 0 8px;
+  font-weight: 700;
+}
+
+#custom-bar-lyrics.paused {
+  opacity: 0.55;
+}
+
+#custom-bar-lyrics.fallback {
+  font-weight: 500;
+}
+
+#image.bar-lyrics-cover {
+  margin-left: 6px;
+}
