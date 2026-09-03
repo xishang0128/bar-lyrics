@@ -17,7 +17,7 @@
 cargo build --release --locked
 install -Dm755 target/release/bar-lyrics plugin/bin/bar-lyrics
 mkdir -p ~/.local/share/noctalia/plugins
-ln -s "$PWD/plugin" ~/.local/share/noctalia/plugins/bar-lyrics
+cp -aT plugin ~/.local/share/noctalia/plugins/bar-lyrics
 noctalia msg plugins enable xishang0128/bar-lyrics
 ```
 
