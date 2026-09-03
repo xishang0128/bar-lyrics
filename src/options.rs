@@ -7,6 +7,7 @@ use serde::Serialize;
 const USAGE: &str = "Usage: bar-lyrics [--source splayer] [--source-endpoint URL] \
                     [--output json|waybar] [--poll-ms N] \
                     [--offset-ms N] [--max-chars N] [--align start|end] \
+                    [--subtitle auto|translation|romanization|hidden] \
                     [--inactive-opacity N] [--cover-dir PATH] \
                     [--current-cover PATH] [--waybar-signal N] [--once]";
 
@@ -34,6 +35,14 @@ impl Alignment {
     }
 }
 
+#[derive(Clone, Copy)]
+pub(crate) enum SubtitleMode {
+    Auto,
+    Translation,
+    Romanization,
+    Hidden,
+}
+
 pub(crate) struct Options {
     pub(crate) source: SourceKind,
     pub(crate) source_endpoint: String,
@@ -42,6 +51,7 @@ pub(crate) struct Options {
     pub(crate) offset_ms: i64,
     pub(crate) max_chars: usize,
     pub(crate) alignment: Alignment,
+    pub(crate) subtitle: SubtitleMode,
     pub(crate) inactive_opacity: u8,
     pub(crate) cover_dir: Option<PathBuf>,
     pub(crate) current_cover: Option<PathBuf>,
@@ -59,6 +69,7 @@ impl Default for Options {
             offset_ms: 0,
             max_chars: 32,
             alignment: Alignment::Start,
+            subtitle: SubtitleMode::Auto,
             inactive_opacity: 45,
             cover_dir: None,
             current_cover: None,
@@ -110,6 +121,20 @@ pub(crate) fn parse() -> Result<Options, String> {
                     Some("start") => Alignment::Start,
                     Some("end") => Alignment::End,
                     _ => return Err("--align needs start or end".to_owned()),
+                };
+            }
+            "--subtitle" => {
+                options.subtitle = match args.next().as_deref() {
+                    Some("auto") => SubtitleMode::Auto,
+                    Some("translation") => SubtitleMode::Translation,
+                    Some("romanization") => SubtitleMode::Romanization,
+                    Some("hidden") => SubtitleMode::Hidden,
+                    _ => {
+                        return Err(
+                            "--subtitle needs auto, translation, romanization, or hidden"
+                                .to_owned(),
+                        );
+                    }
                 };
             }
             "--inactive-opacity" => {

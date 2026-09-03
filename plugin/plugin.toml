@@ -72,6 +72,19 @@ entry = "widget.luau"
   ]
 
   [[widget.setting]]
+  key = "subtitle"
+  type = "select"
+  label_key = "settings.subtitle.label"
+  description_key = "settings.subtitle.description"
+  default = "auto"
+  options = [
+    { value = "auto", label_key = "settings.subtitle.auto" },
+    { value = "translation", label_key = "settings.subtitle.translation" },
+    { value = "romanization", label_key = "settings.subtitle.romanization" },
+    { value = "hidden", label_key = "settings.subtitle.hidden" },
+  ]
+
+  [[widget.setting]]
   key = "show_when_paused"
   type = "bool"
   label_key = "settings.show_when_paused.label"

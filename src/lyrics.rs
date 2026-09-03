@@ -2,6 +2,7 @@ use serde::Serialize;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::model::LyricLine;
+use crate::options::SubtitleMode;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub(crate) struct TextSegment {
@@ -87,6 +88,19 @@ pub(crate) fn truncate_text(text: &str, max_chars: usize) -> String {
         graphemes[max_chars - 1] = "…".to_owned();
     }
     graphemes.concat()
+}
+
+pub(crate) fn subtitle(line: &LyricLine, max_chars: usize, mode: SubtitleMode) -> String {
+    let translation = line.translation.trim();
+    let romanization = line.romanization.trim();
+    let text = match mode {
+        SubtitleMode::Auto if !translation.is_empty() => translation,
+        SubtitleMode::Auto => romanization,
+        SubtitleMode::Translation => translation,
+        SubtitleMode::Romanization => romanization,
+        SubtitleMode::Hidden => "",
+    };
+    truncate_text(text, max_chars)
 }
 
 fn line_text(line: &LyricLine) -> String {

@@ -165,6 +165,10 @@ struct LyricLineResponse {
     #[serde(default)]
     text: String,
     #[serde(default)]
+    translated_lyric: String,
+    #[serde(default)]
+    roman_lyric: String,
+    #[serde(default)]
     start_time: i64,
     #[serde(default)]
     end_time: i64,
@@ -174,9 +178,19 @@ struct LyricLineResponse {
 
 impl From<LyricLineResponse> for LyricLine {
     fn from(line: LyricLineResponse) -> Self {
+        let romanization = if line.roman_lyric.trim().is_empty() {
+            line.words
+                .iter()
+                .map(|word| word.roman_word.as_str())
+                .collect()
+        } else {
+            line.roman_lyric
+        };
         Self {
             words: line.words.into_iter().map(LyricWord::from).collect(),
             text: line.text,
+            translation: line.translated_lyric,
+            romanization,
             start_time: line.start_time,
             end_time: line.end_time,
             is_background: line.is_background,
@@ -189,6 +203,8 @@ impl From<LyricLineResponse> for LyricLine {
 struct LyricWordResponse {
     #[serde(default)]
     word: String,
+    #[serde(default)]
+    roman_word: String,
     #[serde(default)]
     start_time: i64,
     #[serde(default)]

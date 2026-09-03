@@ -140,7 +140,7 @@ fn waybar_ancestor() -> Option<u32> {
 
 fn markup_segments(frame: &Frame, inactive_opacity: u8) -> String {
     let mut markup = String::new();
-    let (segments, transition_opacity, phase) = select_line(frame, inactive_opacity);
+    let (segments, subtitle, transition_opacity, phase) = select_line(frame, inactive_opacity);
     let active_opacity = (transition_opacity * 100.0).round().clamp(1.0, 100.0) as u8;
     let rise = match phase {
         TextPhase::Static => 0,
@@ -162,6 +162,15 @@ fn markup_segments(frame: &Frame, inactive_opacity: u8) -> String {
             ));
         }
     }
+    if !subtitle.is_empty() {
+        let opacity = (transition_opacity * f64::from(inactive_opacity))
+            .round()
+            .clamp(1.0, 100.0) as u8;
+        markup.push_str(&format!(
+            "\n<span size=\"smaller\" alpha=\"{opacity}%\" rise=\"{rise}\">{}</span>",
+            escape_markup(subtitle)
+        ));
+    }
     markup
 }
 
@@ -171,22 +180,34 @@ enum TextPhase {
     Incoming,
 }
 
-fn select_line(frame: &Frame, inactive_opacity: u8) -> (&[TextSegment], f64, TextPhase) {
+fn select_line(frame: &Frame, inactive_opacity: u8) -> (&[TextSegment], &str, f64, TextPhase) {
     match frame.text_display() {
-        TextDisplay::Static(segments) => (segments, 1.0, TextPhase::Static),
+        TextDisplay::Static { segments, subtitle } => (segments, subtitle, 1.0, TextPhase::Static),
         TextDisplay::Transition {
             outgoing,
+            outgoing_subtitle,
             outgoing_opacity,
             incoming,
+            incoming_subtitle,
             incoming_opacity,
         } => {
             let inactive_opacity = f64::from(inactive_opacity) / 100.0;
             let outgoing_strength = line_strength(outgoing, inactive_opacity) * outgoing_opacity;
             let incoming_strength = line_strength(incoming, inactive_opacity) * incoming_opacity;
             if outgoing_strength > incoming_strength {
-                (outgoing, outgoing_opacity, TextPhase::Outgoing)
+                (
+                    outgoing,
+                    outgoing_subtitle,
+                    outgoing_opacity,
+                    TextPhase::Outgoing,
+                )
             } else {
-                (incoming, incoming_opacity, TextPhase::Incoming)
+                (
+                    incoming,
+                    incoming_subtitle,
+                    incoming_opacity,
+                    TextPhase::Incoming,
+                )
             }
         }
     }

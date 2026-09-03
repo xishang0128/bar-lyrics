@@ -1,4 +1,5 @@
-local LINE_VIEWPORT_HEIGHT = 18
+local MAIN_LINE_HEIGHT = 16
+local SUBTITLE_LINE_HEIGHT = 10
 local FRAME_KEY = "bar_lyrics.frame"
 
 local activeColor = noctalia.getConfig("active_color") or "on_surface"
@@ -13,20 +14,27 @@ local showGlyph = noctalia.getConfig("show_glyph") == true
 local glyph = noctalia.getConfig("glyph") or "music"
 local fallback = noctalia.getConfig("fallback") or "track"
 noctalia.getConfig("max_chars")
+noctalia.getConfig("subtitle")
 
-local function label(text, color, opacity, key)
+local function label(text, color, opacity, key, fontSize)
   return ui.label({
     key = key,
     text = text,
     color = color,
     opacity = opacity,
     maxLines = 1,
+    fontSize = fontSize,
     fontWeight = "bold",
     baseline = "textFixedHeight",
   })
 end
 
-local function lineNode(line)
+local function lineHeight(line)
+  return type(line.subtitle) == "string" and line.subtitle ~= ""
+    and MAIN_LINE_HEIGHT + SUBTITLE_LINE_HEIGHT or MAIN_LINE_HEIGHT
+end
+
+local function lineNode(line, alignment)
   local nodes = {}
   for index, segment in ipairs(line.segments or {}) do
     local progress = math.max(0, math.min(1,
@@ -36,34 +44,56 @@ local function lineNode(line)
       segment.text or "",
       progress > 0 and activeColor or inactiveColor,
       inactiveOpacity + (1 - inactiveOpacity) * progress,
-      "segment-" .. tostring(index)
+      "segment-" .. tostring(index),
+      13
     )
   end
-  return ui.row({ key = "line-" .. tostring(line.key), gap = 0, align = "center" }, nodes)
+  local main = ui.row({ key = "main", gap = 0, align = "center" }, nodes)
+  if type(line.subtitle) ~= "string" or line.subtitle == "" then return main end
+
+  return ui.column({
+    key = "line-" .. tostring(line.key),
+    gap = 0,
+    align = alignment or "start",
+  }, {
+    main,
+    ui.label({
+      key = "subtitle",
+      text = line.subtitle,
+      color = inactiveColor,
+      opacity = inactiveOpacity,
+      maxLines = 1,
+      fontSize = 9,
+      fontWeight = "medium",
+      baseline = "textFixedHeight",
+    }),
+  })
 end
 
 local function lyricNode(frame)
   local transition = frame.transition
-  if type(transition) ~= "table" then return lineNode(frame.line) end
+  if type(transition) ~= "table" then return lineNode(frame.line, frame.alignment) end
+
+  local viewportHeight = math.max(lineHeight(transition.outgoing), lineHeight(frame.line))
 
   return ui.column({
     key = "line-transition",
-    height = LINE_VIEWPORT_HEIGHT,
+    height = viewportHeight,
     gap = 0,
     align = frame.alignment or "start",
   }, {
     ui.row({
       key = "outgoing",
-      height = LINE_VIEWPORT_HEIGHT * transition.outgoing_height_factor,
+      height = viewportHeight * transition.outgoing_height_factor,
       align = "end",
       opacity = transition.outgoing_opacity,
-    }, { lineNode(transition.outgoing) }),
+    }, { lineNode(transition.outgoing, frame.alignment) }),
     ui.row({
       key = "incoming",
-      height = LINE_VIEWPORT_HEIGHT,
+      height = viewportHeight,
       align = "start",
       opacity = transition.incoming_opacity,
-    }, { lineNode(frame.line) }),
+    }, { lineNode(frame.line, frame.alignment) }),
   })
 end
 
@@ -113,7 +143,7 @@ local function render(frame)
   if frame.artist and frame.artist ~= "" then tooltip = tooltip .. " — " .. frame.artist end
   if frame.source and frame.source ~= "" then tooltip = tooltip .. "\n" .. frame.source end
 
-  barWidget.render(ui.row({ gap = #children > 1 and 5 or 0, align = "center" }, children))
+  barWidget.render(ui.row({ gap = #children > 1 and 3 or 0, align = "center" }, children))
   barWidget.setTooltip(tooltip)
   barWidget.setVisible(true)
 end

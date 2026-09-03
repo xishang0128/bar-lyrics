@@ -25,7 +25,12 @@ fn run() -> Result<(), String> {
 
     if options.once {
         engine.refresh()?;
-        return output.emit(&engine.frame(options.offset_ms, options.max_chars, options.alignment));
+        return output.emit(&engine.frame(
+            options.offset_ms,
+            options.max_chars,
+            options.alignment,
+            options.subtitle,
+        ));
     }
 
     let mut next_poll = Instant::now();
@@ -45,7 +50,12 @@ fn run() -> Result<(), String> {
             next_poll = Instant::now() + options.poll_interval;
         }
 
-        let frame = engine.frame(options.offset_ms, options.max_chars, options.alignment);
+        let frame = engine.frame(
+            options.offset_ms,
+            options.max_chars,
+            options.alignment,
+            options.subtitle,
+        );
         if last_frame.as_ref() != Some(&frame) {
             output.emit(&frame)?;
             last_frame = Some(frame);

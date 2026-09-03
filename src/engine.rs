@@ -5,17 +5,22 @@ use serde::Serialize;
 use crate::cover::CoverCache;
 use crate::lyrics;
 use crate::model::{LyricLine, PlaybackSnapshot, Track};
-use crate::options::Alignment;
+use crate::options::{Alignment, SubtitleMode};
 use crate::source::Source;
 
 const LINE_TRANSITION_MAX_LEAD_MS: i64 = 320;
 
 pub(crate) enum TextDisplay<'a> {
-    Static(&'a [lyrics::TextSegment]),
+    Static {
+        segments: &'a [lyrics::TextSegment],
+        subtitle: &'a str,
+    },
     Transition {
         outgoing: &'a [lyrics::TextSegment],
+        outgoing_subtitle: &'a str,
         outgoing_opacity: f64,
         incoming: &'a [lyrics::TextSegment],
+        incoming_subtitle: &'a str,
         incoming_opacity: f64,
     },
 }
@@ -24,6 +29,7 @@ pub(crate) enum TextDisplay<'a> {
 struct DisplayLine {
     key: String,
     segments: Vec<lyrics::TextSegment>,
+    subtitle: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -58,18 +64,21 @@ impl Frame {
             if let Some(line) = &self.line {
                 return TextDisplay::Transition {
                     outgoing: &transition.outgoing.segments,
+                    outgoing_subtitle: &transition.outgoing.subtitle,
                     outgoing_opacity: transition.outgoing_opacity,
                     incoming: &line.segments,
+                    incoming_subtitle: &line.subtitle,
                     incoming_opacity: transition.incoming_opacity,
                 };
             }
         }
-        TextDisplay::Static(
-            self.line
-                .as_ref()
+        let line = self.line.as_ref();
+        TextDisplay::Static {
+            segments: line
                 .map(|line| line.segments.as_slice())
                 .unwrap_or_default(),
-        )
+            subtitle: line.map(|line| line.subtitle.as_str()).unwrap_or_default(),
+        }
     }
 
     pub(crate) fn is_visible(&self) -> bool {
@@ -260,6 +269,7 @@ impl Engine {
         offset_ms: i64,
         max_chars: usize,
         alignment: Alignment,
+        subtitle_mode: SubtitleMode,
     ) -> Frame {
         let cover_path = self.cover_cache.path().to_owned();
         let Some(playback) = &self.playback else {
@@ -321,6 +331,7 @@ impl Engine {
             self.lyrics_word_synced,
             max_chars,
             alignment,
+            subtitle_mode,
         ) else {
             return Frame::fallback(
                 playback,
@@ -340,6 +351,7 @@ impl Engine {
                 self.lyrics_word_synced,
                 max_chars,
                 alignment,
+                subtitle_mode,
             )
             .map(|outgoing| line_transition(outgoing, progress))
         });
@@ -379,6 +391,7 @@ fn display_line(
     word_synced: bool,
     max_chars: usize,
     alignment: Alignment,
+    subtitle_mode: SubtitleMode,
 ) -> Option<DisplayLine> {
     Some(DisplayLine {
         key: format!("{title}|{}", line.start_time),
@@ -389,6 +402,7 @@ fn display_line(
             max_chars,
             alignment.is_end(),
         )?,
+        subtitle: lyrics::subtitle(line, max_chars, subtitle_mode),
     })
 }
 

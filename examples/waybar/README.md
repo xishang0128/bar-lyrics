@@ -54,6 +54,7 @@
 
 - 输出提供 `playing`、`paused`、`lyrics`、`fallback` 和 `hidden` CSS class。
 - 逐字歌词使用 Pango markup 高亮，换行采用上移淡出、下方淡入动画。
+- `--subtitle` 可设为 `auto`、`translation`、`romanization` 或 `hidden`。
 - 封面由 Rust 原子更新，Waybar 通过实时信号刷新，不会定时轮询或启动封面进程。
 - 示例使用 `/run/user/1000`；UID 不同时需同步修改 `--current-cover` 和 `path`。
 - 信号 8 被占用时，需同步修改 `--waybar-signal` 和 `signal`。

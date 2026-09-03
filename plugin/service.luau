@@ -22,7 +22,7 @@ end
 local function displayOptions()
   local widgets = noctalia.getSetting("widget")
   local bars = noctalia.getSetting("bar")
-  if type(widgets) ~= "table" or type(bars) ~= "table" then return "start", 32, true end
+  if type(widgets) ~= "table" or type(bars) ~= "table" then return "start", 32, true, "auto" end
 
   for _, bar in pairs(bars) do
     if type(bar) == "table" then
@@ -34,29 +34,30 @@ local function displayOptions()
             if type(settings) == "table" and settings.type == WIDGET_TYPE then
               local maxChars = tonumber(settings.max_chars) or 32
               local showCover = settings.show_cover ~= false
-              if laneName ~= "center" then return laneName, maxChars, showCover end
+              local subtitle = settings.subtitle or "auto"
+              if laneName ~= "center" then return laneName, maxChars, showCover, subtitle end
 
               for anchorIndex, anchorName in ipairs(lane) do
                 local anchor = widgets[anchorName]
                 if type(anchor) == "table" and anchor.anchor == true then
-                  return index < anchorIndex and "end" or "start", maxChars, showCover
+                  return index < anchorIndex and "end" or "start", maxChars, showCover, subtitle
                 end
               end
-              return index <= (#lane + 1) / 2 and "end" or "start", maxChars, showCover
+              return index <= (#lane + 1) / 2 and "end" or "start", maxChars, showCover, subtitle
             end
           end
         end
       end
     end
   end
-  return "start", 32, true
+  return "start", 32, true, "auto"
 end
 
 local function stream(executable)
   local baseUrl = noctalia.getConfig("base_url") or "http://127.0.0.1:14558"
   local pollInterval = tonumber(noctalia.getConfig("poll_interval_ms")) or 250
   local offset = tonumber(noctalia.getConfig("offset_ms")) or 0
-  local alignment, maxChars, showCover = displayOptions()
+  local alignment, maxChars, showCover, subtitle = displayOptions()
   local command = shellQuote(executable)
     .. " --source splayer"
     .. " --source-endpoint " .. shellQuote(baseUrl)
@@ -65,6 +66,7 @@ local function stream(executable)
     .. " --offset-ms " .. tostring(offset)
     .. " --max-chars " .. tostring(maxChars)
     .. " --align " .. alignment
+    .. " --subtitle " .. shellQuote(subtitle)
   if showCover then
     local dataDir = noctalia.pluginDataDir()
     if dataDir then command = command .. " --cover-dir " .. shellQuote(dataDir .. "/covers") end

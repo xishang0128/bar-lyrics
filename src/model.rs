@@ -28,6 +28,8 @@ pub(crate) struct LyricsSnapshot {
 pub(crate) struct LyricLine {
     pub(crate) words: Vec<LyricWord>,
     pub(crate) text: String,
+    pub(crate) translation: String,
+    pub(crate) romanization: String,
     pub(crate) start_time: i64,
     pub(crate) end_time: i64,
     pub(crate) is_background: bool,
