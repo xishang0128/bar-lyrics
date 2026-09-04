@@ -1,12 +1,11 @@
 use std::env;
 use std::path::PathBuf;
-use std::time::Duration;
 
 use serde::Serialize;
 
 const USAGE: &str = "Usage: bar-lyrics [--source splayer] [--source-endpoint URL] \
-                    [--output json|waybar] [--poll-ms N] \
-                    [--offset-ms N] [--max-chars N] [--align start|end] \
+                    [--output json|waybar] [--offset-ms N] [--max-chars N] \
+                    [--align start|end] \
                     [--subtitle auto|translation|romanization|hidden] \
                     [--inactive-opacity N] [--cover-dir PATH] \
                     [--current-cover PATH] [--waybar-signal N] [--once]";
@@ -47,7 +46,6 @@ pub(crate) struct Options {
     pub(crate) source: SourceKind,
     pub(crate) source_endpoint: String,
     pub(crate) output: OutputKind,
-    pub(crate) poll_interval: Duration,
     pub(crate) offset_ms: i64,
     pub(crate) max_chars: usize,
     pub(crate) alignment: Alignment,
@@ -65,7 +63,6 @@ impl Default for Options {
             source: SourceKind::Splayer,
             source_endpoint: "http://127.0.0.1:14558".to_owned(),
             output: OutputKind::Json,
-            poll_interval: Duration::from_millis(250),
             offset_ms: 0,
             max_chars: 32,
             alignment: Alignment::Start,
@@ -101,11 +98,6 @@ pub(crate) fn parse() -> Result<Options, String> {
                     Some("waybar") => OutputKind::Waybar,
                     _ => return Err("--output needs json or waybar".to_owned()),
                 };
-            }
-            "--poll-ms" => {
-                let value = args.next().ok_or("--poll-ms needs a value")?;
-                let millis = value.parse::<u64>().map_err(|_| "invalid --poll-ms")?;
-                options.poll_interval = Duration::from_millis(millis.clamp(100, 2_000));
             }
             "--offset-ms" => {
                 let value = args.next().ok_or("--offset-ms needs a value")?;

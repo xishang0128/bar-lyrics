@@ -1,8 +1,6 @@
 {
   "settings.base_url.label": "SPlayer API URL",
-  "settings.base_url.description": "Address of the enabled SPlayer external API.",
-  "settings.poll_interval.label": "Status polling interval",
-  "settings.poll_interval.description": "How often playback position and track state are synchronized.",
+  "settings.base_url.description": "SPlayer address with the external API and WebSocket enabled.",
   "settings.offset.label": "Additional lyric offset",
   "settings.offset.description": "Extra synchronization offset in milliseconds, added to SPlayer's own offset.",
   "settings.max_chars.label": "Maximum width (characters)",

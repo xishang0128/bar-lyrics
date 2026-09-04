@@ -216,6 +216,10 @@ impl Engine {
         self.cover_cache.set_url("");
     }
 
+    pub(crate) fn take_source_update(&mut self) -> Result<bool, String> {
+        self.source.take_update()
+    }
+
     pub(crate) fn refresh(&mut self) -> Result<(), String> {
         let snapshot = self.source.now_playing()?;
         self.cover_cache.set_url(

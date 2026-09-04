@@ -17,16 +17,6 @@ description_key = "settings.base_url.description"
 default = "http://127.0.0.1:14558"
 
 [[setting]]
-key = "poll_interval_ms"
-type = "int"
-label_key = "settings.poll_interval.label"
-description_key = "settings.poll_interval.description"
-default = 250
-min = 100
-max = 2000
-advanced = true
-
-[[setting]]
 key = "offset_ms"
 type = "int"
 label_key = "settings.offset.label"

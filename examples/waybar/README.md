@@ -1,8 +1,6 @@
 # Waybar 配置
 
-将 [`config.jsonc`](config.jsonc) 合并到 Waybar 配置，并按需合并
-[`style.css`](style.css)。`custom/bar-lyrics` 是持续输出模块，不要给它设置
-`interval`。
+将 [`config.jsonc`](config.jsonc) 合并到 Waybar 配置，并按需合并 [`style.css`](style.css)。`custom/bar-lyrics` 是持续输出模块，不要给它设置 `interval`。使用前需在 SPlayer 中同时启用外部 API 与 WebSocket。
 
 ## 封面与歌词对齐
 

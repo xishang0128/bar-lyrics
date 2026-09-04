@@ -1,8 +1,6 @@
 {
   "settings.base_url.label": "SPlayer API 地址",
-  "settings.base_url.description": "已启用的 SPlayer 外部 API 地址。",
-  "settings.poll_interval.label": "状态同步间隔",
-  "settings.poll_interval.description": "同步播放位置与曲目状态的频率。",
+  "settings.base_url.description": "已启用外部 API 与 WebSocket 的 SPlayer 地址。",
   "settings.offset.label": "额外歌词偏移",
   "settings.offset.description": "在 SPlayer 自身偏移量上追加的毫秒数。",
   "settings.max_chars.label": "最大宽度（字符数）",

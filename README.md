@@ -1,7 +1,6 @@
 # Bar Lyrics
 
-面向桌面 Bar 的单行同步歌词项目。目前提供 Noctalia v5 插件与 SPlayer Next
-数据源；Rust 负责数据读取、同步和生成显示帧，适配层只桥接平台并渲染 UI。
+面向桌面 Bar 的单行同步歌词项目。目前提供 Noctalia v5 插件与 SPlayer Next 数据源；Rust 负责数据读取、同步和生成显示帧，适配层只桥接平台并渲染 UI。
 
 ![效果预览](assets/preview.gif)
 
@@ -13,7 +12,7 @@
 
 ## 安装
 
-先在 SPlayer 中启用外部 API，然后执行：
+先在 SPlayer 中启用外部 API 和 WebSocket，然后执行：
 
 ```bash
 cargo build --release --locked
@@ -23,8 +22,7 @@ cp -aT plugin ~/.local/share/noctalia/plugins/bar-lyrics
 noctalia msg plugins enable xishang0128/bar-lyrics
 ```
 
-在 Noctalia Bar 中添加 `xishang0128/bar-lyrics:lyrics` widget。默认 API 地址为
-`http://127.0.0.1:14558`。
+在 Noctalia Bar 中添加 `xishang0128/bar-lyrics:lyrics` widget。默认 API 地址为 `http://127.0.0.1:14558`。持续运行依赖 `/ws` 的实时事件；HTTP 只用于初始状态和低频位置校准。
 
 ### Waybar
 

@@ -53,7 +53,6 @@ end
 
 local function stream(executable)
   local baseUrl = noctalia.getConfig("base_url") or "http://127.0.0.1:14558"
-  local pollInterval = tonumber(noctalia.getConfig("poll_interval_ms")) or 250
   local offset = tonumber(noctalia.getConfig("offset_ms")) or 0
   local alignment, showCover = displayOptions()
   local maxChars = tonumber(noctalia.getConfig("max_chars")) or 32
@@ -62,7 +61,6 @@ local function stream(executable)
     .. " --source splayer"
     .. " --source-endpoint " .. shellQuote(baseUrl)
     .. " --output json"
-    .. " --poll-ms " .. tostring(pollInterval)
     .. " --offset-ms " .. tostring(offset)
     .. " --max-chars " .. tostring(maxChars)
     .. " --align " .. alignment

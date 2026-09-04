@@ -1,7 +1,10 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, TryRecvError};
+use std::thread;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
+use tungstenite::{Message, connect};
 
 use super::Source;
 use crate::model::{LyricLine, LyricWord, LyricsSnapshot, PlaybackSnapshot, Track};
@@ -9,14 +12,18 @@ use crate::model::{LyricLine, LyricWord, LyricsSnapshot, PlaybackSnapshot, Track
 pub(super) struct SPlayer {
     base_url: String,
     agent: ureq::Agent,
+    updates: Option<UpdateWatcher>,
 }
 
 impl SPlayer {
-    pub(super) fn new(base_url: &str) -> Self {
-        Self {
+    pub(super) fn new(base_url: &str, watch: bool) -> Result<Self, String> {
+        Ok(Self {
             base_url: base_url.to_owned(),
             agent: ureq::Agent::new_with_defaults(),
-        }
+            updates: watch
+                .then(|| UpdateWatcher::connect(base_url))
+                .transpose()?,
+        })
     }
 
     fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, String> {
@@ -70,6 +77,145 @@ impl Source for SPlayer {
             source,
         })
     }
+
+    fn take_update(&mut self) -> Result<bool, String> {
+        self.updates.as_mut().map_or(Ok(false), UpdateWatcher::take)
+    }
+}
+
+const WS_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
+const WS_RECONNECT_DELAY: Duration = Duration::from_secs(1);
+
+enum UpdateEvent {
+    Connected,
+    Changed,
+    Disconnected(String),
+}
+
+struct UpdateWatcher {
+    receiver: Receiver<UpdateEvent>,
+    connected: bool,
+    last_error: String,
+}
+
+impl UpdateWatcher {
+    fn connect(base_url: &str) -> Result<Self, String> {
+        let url = websocket_url(base_url)?;
+        let (sender, receiver) = mpsc::channel();
+        thread::Builder::new()
+            .name("splayer-websocket".to_owned())
+            .spawn({
+                let url = url.clone();
+                move || watch_updates(&url, sender)
+            })
+            .map_err(|error| format!("start SPlayer WebSocket watcher: {error}"))?;
+
+        match receiver.recv_timeout(WS_CONNECT_TIMEOUT) {
+            Ok(UpdateEvent::Connected) => Ok(Self {
+                receiver,
+                connected: true,
+                last_error: String::new(),
+            }),
+            Ok(UpdateEvent::Disconnected(error)) => Err(websocket_error(&url, &error)),
+            Ok(UpdateEvent::Changed) => unreachable!("change received before WebSocket connection"),
+            Err(RecvTimeoutError::Timeout) => Err(websocket_error(&url, "connection timed out")),
+            Err(RecvTimeoutError::Disconnected) => {
+                Err(websocket_error(&url, "watcher stopped unexpectedly"))
+            }
+        }
+    }
+
+    fn take(&mut self) -> Result<bool, String> {
+        let mut changed = false;
+        loop {
+            match self.receiver.try_recv() {
+                Ok(UpdateEvent::Connected) => {
+                    self.connected = true;
+                    self.last_error.clear();
+                    changed = true;
+                }
+                Ok(UpdateEvent::Changed) => changed = true,
+                Ok(UpdateEvent::Disconnected(error)) => {
+                    self.connected = false;
+                    self.last_error = error;
+                }
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => {
+                    self.connected = false;
+                    self.last_error = "watcher stopped unexpectedly".to_owned();
+                    break;
+                }
+            }
+        }
+
+        if self.connected {
+            Ok(changed)
+        } else {
+            Err(format!(
+                "SPlayer WebSocket disconnected: {}",
+                self.last_error
+            ))
+        }
+    }
+}
+
+fn websocket_url(base_url: &str) -> Result<String, String> {
+    let base_url = base_url.trim_end_matches('/');
+    if let Some(endpoint) = base_url.strip_prefix("http://") {
+        return Ok(format!("ws://{endpoint}/ws"));
+    }
+    if let Some(endpoint) = base_url.strip_prefix("https://") {
+        return Ok(format!("wss://{endpoint}/ws"));
+    }
+    Err("SPlayer endpoint must start with http:// or https://".to_owned())
+}
+
+fn websocket_error(url: &str, error: &str) -> String {
+    format!(
+        "SPlayer WebSocket unavailable at {url}; enable WebSocket in SPlayer external API settings: {error}"
+    )
+}
+
+fn watch_updates(url: &str, sender: Sender<UpdateEvent>) {
+    loop {
+        let disconnected = match connect(url) {
+            Ok((mut socket, _)) => {
+                if sender.send(UpdateEvent::Connected).is_err() {
+                    return;
+                }
+                loop {
+                    match socket.read() {
+                        Ok(Message::Text(text)) if is_update(text.as_ref()) => {
+                            if sender.send(UpdateEvent::Changed).is_err() {
+                                return;
+                            }
+                        }
+                        Ok(Message::Close(_)) => break "connection closed".to_owned(),
+                        Ok(_) => {}
+                        Err(error) => break error.to_string(),
+                    }
+                }
+            }
+            Err(error) => error.to_string(),
+        };
+
+        if sender
+            .send(UpdateEvent::Disconnected(disconnected))
+            .is_err()
+        {
+            return;
+        }
+        thread::sleep(WS_RECONNECT_DELAY);
+    }
+}
+
+fn is_update(message: &str) -> bool {
+    #[derive(Deserialize)]
+    struct Envelope {
+        kind: String,
+    }
+
+    serde_json::from_str::<Envelope>(message).is_ok_and(|message| message.kind == "event")
 }
 
 #[derive(Deserialize)]
