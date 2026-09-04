@@ -35,6 +35,28 @@ default = 0
 min = -10000
 max = 10000
 
+[[setting]]
+key = "max_chars"
+type = "int"
+label_key = "settings.max_chars.label"
+description_key = "settings.max_chars.description"
+default = 32
+min = 12
+max = 80
+
+[[setting]]
+key = "subtitle"
+type = "select"
+label_key = "settings.subtitle.label"
+description_key = "settings.subtitle.description"
+default = "auto"
+options = [
+  { value = "auto", label_key = "settings.subtitle.auto" },
+  { value = "translation", label_key = "settings.subtitle.translation" },
+  { value = "romanization", label_key = "settings.subtitle.romanization" },
+  { value = "hidden", label_key = "settings.subtitle.hidden" },
+]
+
 [[service]]
 id = "bridge"
 entry = "service.luau"
@@ -50,15 +72,6 @@ entry = "widget.luau"
   forward = "media next"
   scroll_up = "media previous"
   scroll_down = "media next"
-
-  [[widget.setting]]
-  key = "max_chars"
-  type = "int"
-  label_key = "settings.max_chars.label"
-  description_key = "settings.max_chars.description"
-  default = 32
-  min = 12
-  max = 80
 
   [[widget.setting]]
   key = "single_line_font_size"
@@ -96,19 +109,6 @@ entry = "widget.luau"
   options = [
     { value = "track", label_key = "settings.fallback.track" },
     { value = "hidden", label_key = "settings.fallback.hidden" },
-  ]
-
-  [[widget.setting]]
-  key = "subtitle"
-  type = "select"
-  label_key = "settings.subtitle.label"
-  description_key = "settings.subtitle.description"
-  default = "auto"
-  options = [
-    { value = "auto", label_key = "settings.subtitle.auto" },
-    { value = "translation", label_key = "settings.subtitle.translation" },
-    { value = "romanization", label_key = "settings.subtitle.romanization" },
-    { value = "hidden", label_key = "settings.subtitle.hidden" },
   ]
 
   [[widget.setting]]

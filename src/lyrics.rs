@@ -90,17 +90,51 @@ pub(crate) fn truncate_text(text: &str, max_chars: usize) -> String {
     graphemes.concat()
 }
 
-pub(crate) fn subtitle(line: &LyricLine, max_chars: usize, mode: SubtitleMode) -> String {
+pub(crate) fn subtitle(
+    line: &LyricLine,
+    position_ms: i64,
+    word_synced: bool,
+    max_chars: usize,
+    mode: SubtitleMode,
+) -> String {
     let translation = line.translation.trim();
     let romanization = line.romanization.trim();
-    let text = match mode {
-        SubtitleMode::Auto if !translation.is_empty() => translation,
-        SubtitleMode::Auto => romanization,
-        SubtitleMode::Translation => translation,
-        SubtitleMode::Romanization => romanization,
-        SubtitleMode::Hidden => "",
+    let (text, follows_lyrics) = match mode {
+        SubtitleMode::Auto if !translation.is_empty() => (translation, false),
+        SubtitleMode::Auto => (romanization, true),
+        SubtitleMode::Translation => (translation, false),
+        SubtitleMode::Romanization => (romanization, true),
+        SubtitleMode::Hidden => ("", false),
     };
-    truncate_text(text, max_chars)
+    if !follows_lyrics || !word_synced {
+        return truncate_text(text, max_chars);
+    }
+
+    let timed = timed_graphemes(line);
+    let active_index = timed
+        .iter()
+        .position(|item| position_ms < item.end_ms)
+        .unwrap_or(timed.len());
+    truncate_around(text, max_chars, active_index, timed.len())
+}
+
+fn truncate_around(text: &str, max_chars: usize, focus: usize, source_len: usize) -> String {
+    let mut graphemes = UnicodeSegmentation::graphemes(text, true).collect::<Vec<_>>();
+    let len = graphemes.len();
+    if len <= max_chars || source_len == 0 {
+        return text.to_owned();
+    }
+
+    let focus = focus.saturating_mul(len) / source_len;
+    let first = focus.saturating_sub(max_chars / 2).min(len - max_chars);
+    graphemes = graphemes[first..first + max_chars].to_vec();
+    if first > 0 {
+        graphemes[0] = "…";
+    }
+    if first + max_chars < len {
+        graphemes[max_chars - 1] = "…";
+    }
+    graphemes.concat()
 }
 
 fn line_text(line: &LyricLine) -> String {

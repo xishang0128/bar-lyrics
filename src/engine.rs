@@ -402,7 +402,7 @@ fn display_line(
             max_chars,
             alignment.is_end(),
         )?,
-        subtitle: lyrics::subtitle(line, max_chars, subtitle_mode),
+        subtitle: lyrics::subtitle(line, position_ms, word_synced, max_chars, subtitle_mode),
     })
 }
 

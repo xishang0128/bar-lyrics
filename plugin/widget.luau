@@ -18,8 +18,6 @@ local coverRadius = math.max(0, math.min(coverSize / 2, tonumber(noctalia.getCon
 local showGlyph = noctalia.getConfig("show_glyph") == true
 local glyph = noctalia.getConfig("glyph") or "music"
 local fallback = noctalia.getConfig("fallback") or "track"
-noctalia.getConfig("max_chars")
-noctalia.getConfig("subtitle")
 
 local function label(text, color, opacity, key, fontSize)
   return ui.label({
