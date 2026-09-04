@@ -136,18 +136,21 @@ fn timed_graphemes(line: &LyricLine) -> Vec<TimedGrapheme> {
 
 fn append_timed_text(result: &mut Vec<TimedGrapheme>, text: &str, start_ms: i64, end_ms: i64) {
     let graphemes = UnicodeSegmentation::graphemes(text, true).collect::<Vec<_>>();
-    let count = graphemes.len() as i64;
-    if count == 0 {
-        return;
-    }
+    let count = graphemes
+        .len()
+        .saturating_sub(text.matches(' ').count())
+        .max(1) as i64;
 
     let duration = (end_ms - start_ms).max(0);
-    for (index, grapheme) in graphemes.into_iter().enumerate() {
-        let index = index as i64;
+    let mut index = 0;
+    for grapheme in graphemes {
         let start = start_ms + duration * index / count;
-        let end = start_ms + duration * (index + 1) / count;
+        if grapheme != " " {
+            index += 1;
+        }
+        let end = start_ms + duration * index / count;
         result.push(TimedGrapheme {
-            text: grapheme.to_owned(),
+            text: if grapheme == " " { "\u{a0}" } else { grapheme }.to_owned(),
             start_ms: start,
             end_ms: end.max(start + 1),
         });
