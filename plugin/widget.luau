@@ -43,6 +43,13 @@ local function lineHeight(line)
   return singleLineFontSize + 3
 end
 
+local contentHeight = math.max(
+  singleLineFontSize + 3,
+  multilineMainFontSize + multilineSubtitleFontSize + 4,
+  showCover and coverSize or 0,
+  showGlyph and 14 or 0
+)
+
 local function lineNode(line, alignment)
   local multiline = hasSubtitle(line)
   local nodes = {}
@@ -153,7 +160,11 @@ local function render(frame)
   if frame.artist and frame.artist ~= "" then tooltip = tooltip .. " — " .. frame.artist end
   if frame.source and frame.source ~= "" then tooltip = tooltip .. "\n" .. frame.source end
 
-  barWidget.render(ui.row({ gap = #children > 1 and 3 or 0, align = "center" }, children))
+  barWidget.render(ui.row({
+    height = contentHeight,
+    gap = #children > 1 and 3 or 0,
+    align = "center",
+  }, children))
   barWidget.setTooltip(tooltip)
   barWidget.setVisible(true)
 end
