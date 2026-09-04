@@ -1,10 +1,15 @@
-local MAIN_LINE_HEIGHT = 16
-local SUBTITLE_LINE_HEIGHT = 10
 local FRAME_KEY = "bar_lyrics.frame"
+
+local function numberSetting(key, default, minimum, maximum)
+  return math.max(minimum, math.min(maximum, tonumber(noctalia.getConfig(key)) or default))
+end
 
 local activeColor = noctalia.getConfig("active_color") or "on_surface"
 local inactiveColor = noctalia.getConfig("inactive_color") or "on_surface_variant"
 local inactiveOpacity = (tonumber(noctalia.getConfig("inactive_opacity")) or 45) / 100
+local singleLineFontSize = numberSetting("single_line_font_size", 15, 8, 32)
+local multilineMainFontSize = numberSetting("multiline_main_font_size", 13, 8, 32)
+local multilineSubtitleFontSize = numberSetting("multiline_subtitle_font_size", 9, 8, 24)
 local showWhenPaused = noctalia.getConfig("show_when_paused") ~= false
 local showCover = noctalia.getConfig("show_cover") ~= false
 local coverPosition = noctalia.getConfig("cover_position") or "right"
@@ -29,12 +34,19 @@ local function label(text, color, opacity, key, fontSize)
   })
 end
 
-local function lineHeight(line)
+local function hasSubtitle(line)
   return type(line.subtitle) == "string" and line.subtitle ~= ""
-    and MAIN_LINE_HEIGHT + SUBTITLE_LINE_HEIGHT or MAIN_LINE_HEIGHT
+end
+
+local function lineHeight(line)
+  if hasSubtitle(line) then
+    return multilineMainFontSize + 3 + multilineSubtitleFontSize + 1
+  end
+  return singleLineFontSize + 3
 end
 
 local function lineNode(line, alignment)
+  local multiline = hasSubtitle(line)
   local nodes = {}
   for index, segment in ipairs(line.segments or {}) do
     local progress = math.max(0, math.min(1,
@@ -45,11 +57,11 @@ local function lineNode(line, alignment)
       progress > 0 and activeColor or inactiveColor,
       inactiveOpacity + (1 - inactiveOpacity) * progress,
       "segment-" .. tostring(index),
-      13
+      multiline and multilineMainFontSize or singleLineFontSize
     )
   end
   local main = ui.row({ key = "main", gap = 0, align = "center" }, nodes)
-  if type(line.subtitle) ~= "string" or line.subtitle == "" then return main end
+  if not multiline then return main end
 
   return ui.column({
     key = "line-" .. tostring(line.key),
@@ -63,7 +75,7 @@ local function lineNode(line, alignment)
       color = inactiveColor,
       opacity = inactiveOpacity,
       maxLines = 1,
-      fontSize = 9,
+      fontSize = multilineSubtitleFontSize,
       fontWeight = "medium",
       baseline = "textFixedHeight",
     }),

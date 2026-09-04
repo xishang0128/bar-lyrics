@@ -61,6 +61,33 @@ entry = "widget.luau"
   max = 80
 
   [[widget.setting]]
+  key = "single_line_font_size"
+  type = "int"
+  label_key = "settings.single_line_font_size.label"
+  description_key = "settings.single_line_font_size.description"
+  default = 15
+  min = 8
+  max = 32
+
+  [[widget.setting]]
+  key = "multiline_main_font_size"
+  type = "int"
+  label_key = "settings.multiline_main_font_size.label"
+  description_key = "settings.multiline_main_font_size.description"
+  default = 13
+  min = 8
+  max = 32
+
+  [[widget.setting]]
+  key = "multiline_subtitle_font_size"
+  type = "int"
+  label_key = "settings.multiline_subtitle_font_size.label"
+  description_key = "settings.multiline_subtitle_font_size.description"
+  default = 9
+  min = 8
+  max = 24
+
+  [[widget.setting]]
   key = "fallback"
   type = "select"
   label_key = "settings.fallback.label"
