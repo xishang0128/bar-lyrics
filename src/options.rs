@@ -10,7 +10,7 @@ const USAGE: &str = "Usage: bar-lyrics [--source splayer] [--source-endpoint URL
                     [--inactive-opacity N] [--cover-dir PATH] \
                     [--current-cover PATH] [--waybar-signal N] [--once]";
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SourceKind {
     Splayer,
 }

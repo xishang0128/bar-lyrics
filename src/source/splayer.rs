@@ -1,4 +1,4 @@
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, TryRecvError};
+use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -16,12 +16,12 @@ pub(super) struct SPlayer {
 }
 
 impl SPlayer {
-    pub(super) fn new(base_url: &str, watch: bool) -> Result<Self, String> {
+    pub(super) fn new(base_url: &str, reconnect: Option<Receiver<()>>) -> Result<Self, String> {
         Ok(Self {
             base_url: base_url.to_owned(),
             agent: ureq::Agent::new_with_defaults(),
-            updates: watch
-                .then(|| UpdateWatcher::connect(base_url))
+            updates: reconnect
+                .map(|events| UpdateWatcher::connect(base_url, events))
                 .transpose()?,
         })
     }
@@ -83,8 +83,8 @@ impl Source for SPlayer {
     }
 }
 
-const WS_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 const WS_RECONNECT_DELAY: Duration = Duration::from_secs(1);
+const WS_CONNECT_ATTEMPTS: usize = 5;
 
 enum UpdateEvent {
     Connected,
@@ -99,30 +99,24 @@ struct UpdateWatcher {
 }
 
 impl UpdateWatcher {
-    fn connect(base_url: &str) -> Result<Self, String> {
+    fn connect(base_url: &str, events: Receiver<()>) -> Result<Self, String> {
         let url = websocket_url(base_url)?;
         let (sender, receiver) = mpsc::channel();
         thread::Builder::new()
             .name("splayer-websocket".to_owned())
             .spawn({
                 let url = url.clone();
-                move || watch_updates(&url, sender)
+                move || watch_updates(&url, sender, events)
             })
             .map_err(|error| format!("start SPlayer WebSocket watcher: {error}"))?;
 
-        match receiver.recv_timeout(WS_CONNECT_TIMEOUT) {
-            Ok(UpdateEvent::Connected) => Ok(Self {
-                receiver,
-                connected: true,
-                last_error: String::new(),
-            }),
-            Ok(UpdateEvent::Disconnected(error)) => Err(websocket_error(&url, &error)),
-            Ok(UpdateEvent::Changed) => unreachable!("change received before WebSocket connection"),
-            Err(RecvTimeoutError::Timeout) => Err(websocket_error(&url, "connection timed out")),
-            Err(RecvTimeoutError::Disconnected) => {
-                Err(websocket_error(&url, "watcher stopped unexpectedly"))
-            }
-        }
+        Ok(Self {
+            receiver,
+            connected: false,
+            last_error:
+                "waiting for SPlayer WebSocket; enable WebSocket in SPlayer external API settings"
+                    .to_owned(),
+        })
     }
 
     fn take(&mut self) -> Result<bool, String> {
@@ -170,16 +164,12 @@ fn websocket_url(base_url: &str) -> Result<String, String> {
     Err("SPlayer endpoint must start with http:// or https://".to_owned())
 }
 
-fn websocket_error(url: &str, error: &str) -> String {
-    format!(
-        "SPlayer WebSocket unavailable at {url}; enable WebSocket in SPlayer external API settings: {error}"
-    )
-}
-
-fn watch_updates(url: &str, sender: Sender<UpdateEvent>) {
+fn watch_updates(url: &str, sender: Sender<UpdateEvent>, events: Receiver<()>) {
+    let mut attempts = WS_CONNECT_ATTEMPTS;
     loop {
         let disconnected = match connect(url) {
             Ok((mut socket, _)) => {
+                attempts = WS_CONNECT_ATTEMPTS;
                 if sender.send(UpdateEvent::Connected).is_err() {
                     return;
                 }
@@ -196,7 +186,10 @@ fn watch_updates(url: &str, sender: Sender<UpdateEvent>) {
                     }
                 }
             }
-            Err(error) => error.to_string(),
+            Err(error) => {
+                attempts -= 1;
+                error.to_string()
+            }
         };
 
         if sender
@@ -205,7 +198,17 @@ fn watch_updates(url: &str, sender: Sender<UpdateEvent>) {
         {
             return;
         }
-        thread::sleep(WS_RECONNECT_DELAY);
+        if attempts == 0 {
+            if events.recv().is_err() {
+                eprintln!("bar-lyrics: reconnect attempts exhausted; restart the plugin to retry");
+                return;
+            }
+            attempts = WS_CONNECT_ATTEMPTS;
+        } else {
+            // Discard events already covered by this connection attempt.
+            while events.try_recv().is_ok() {}
+            thread::sleep(WS_RECONNECT_DELAY);
+        }
     }
 }
 

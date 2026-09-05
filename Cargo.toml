@@ -18,6 +18,9 @@ tungstenite = { version = "0.30.0", default-features = false, features = ["hands
 unicode-segmentation = "1.12"
 ureq = { version = "3.4", default-features = false, features = ["json", "native-tls"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+dbus = "0.9"
+
 [profile.release]
 codegen-units = 1
 lto = "fat"

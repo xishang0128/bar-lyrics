@@ -34,8 +34,7 @@ fn run() -> Result<(), String> {
         ));
     }
 
-    engine.refresh()?;
-    let mut next_resync = Instant::now() + POSITION_RESYNC_INTERVAL;
+    let mut next_resync = Instant::now();
     let mut refresh_failed_at = None;
     let mut last_frame = None;
     loop {

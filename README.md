@@ -24,6 +24,8 @@ noctalia msg plugins enable xishang0128/bar-lyrics
 
 在 Noctalia Bar 中添加 `xishang0128/bar-lyrics:lyrics` widget。默认 API 地址为 `http://127.0.0.1:14558`。持续运行依赖 `/ws` 的实时事件；HTTP 只用于初始状态和低频位置校准。
 
+Linux 通过 MPRIS 事件识别播放器并接入歌词源，需启用 SPlayer 的「系统媒体控制」；构建需安装 `dbus` 开发库和 `pkg-config`。
+
 ### Waybar
 
 先安装二进制：
