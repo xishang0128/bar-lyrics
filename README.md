@@ -16,9 +16,9 @@
 
 ```bash
 cargo build --release --locked
-install -Dm755 target/release/bar-lyrics plugin/bin/bar-lyrics
+install -Dm755 target/release/bar-lyrics noctalia/bin/bar-lyrics
 mkdir -p ~/.local/share/noctalia/plugins
-cp -aT plugin ~/.local/share/noctalia/plugins/bar-lyrics
+cp -aT noctalia ~/.local/share/noctalia/plugins/bar-lyrics
 noctalia msg plugins enable xishang0128/bar-lyrics
 ```
 
@@ -43,7 +43,7 @@ install -Dm755 target/release/bar-lyrics ~/.local/bin/bar-lyrics
 ## 目录
 
 ```text
-plugin/          Noctalia 清单、service、widget、sidecar 与翻译
+noctalia/        Noctalia 清单、service、widget、sidecar 与翻译
 dms/             DMS 插件与安装说明
 src/cover.rs     封面下载与缓存
 src/model.rs     与数据源、输出平台无关的领域模型
@@ -61,6 +61,6 @@ src/main.rs      流式输出循环
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo build --release --locked
-noctalia plugins lint plugin
+noctalia plugins lint noctalia
 ./target/release/bar-lyrics --source splayer --output json --once
 ```
