@@ -1,0 +1,16 @@
+{
+  "id": "barLyrics",
+  "name": "Bar Lyrics",
+  "description": "Synchronized lyrics, subtitles and cover art for DankBar.",
+  "version": "0.1.0",
+  "author": "xishang0128",
+  "type": "composite",
+  "capabilities": ["daemon", "dankbar-widget"],
+  "icon": "lyrics",
+  "components": {
+    "daemon": "./Bridge.qml",
+    "widget": "./Widget.qml"
+  },
+  "settings": "./Settings.qml",
+  "permissions": ["settings_read", "settings_write", "process"]
+}

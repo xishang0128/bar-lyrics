@@ -1,6 +1,6 @@
 # Bar Lyrics
 
-面向桌面 Bar 的单行同步歌词项目。目前提供 Noctalia v5 插件与 SPlayer Next 数据源；Rust 负责数据读取、同步和生成显示帧，适配层只桥接平台并渲染 UI。
+面向桌面 Bar 的单行同步歌词项目。目前提供 Noctalia v5、DMS 插件与 SPlayer Next 数据源；Rust 负责数据读取、同步和生成显示帧，适配层只桥接平台并渲染 UI。
 
 ![效果预览](assets/preview.gif)
 
@@ -36,10 +36,15 @@ install -Dm755 target/release/bar-lyrics ~/.local/bin/bar-lyrics
 
 配置、样式和左右对齐方式见 [`examples/waybar`](examples/waybar/README.md)。
 
+### DMS
+
+安装与设置见 [`dms`](dms/README.md)。
+
 ## 目录
 
 ```text
 plugin/          Noctalia 清单、service、widget、sidecar 与翻译
+dms/             DMS 插件与安装说明
 src/cover.rs     封面下载与缓存
 src/model.rs     与数据源、输出平台无关的领域模型
 src/options.rs   sidecar 启动参数
