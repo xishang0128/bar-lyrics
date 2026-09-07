@@ -88,7 +88,7 @@ struct ActiveSource {
 struct SourceRouter {
     kind: SourceKind,
     endpoint: String,
-    events: Receiver<mpris::Event>,
+    events: mpris::Events,
     active: Option<ActiveSource>,
 }
 

@@ -48,21 +48,48 @@ pub(super) enum Event {
     Unavailable(String),
 }
 
-pub(super) fn subscribe() -> Receiver<Event> {
-    let (sender, events) = mpsc::sync_channel(32);
+pub(super) struct Events {
+    receiver: Receiver<Event>,
     #[cfg(target_os = "linux")]
-    if let Err(error) = std::thread::Builder::new()
-        .name("mpris-events".to_owned())
-        .spawn({
-            let sender = sender.clone();
-            move || {
-                if let Err(error) = watch(&sender) {
-                    let _ = sender.send(Event::Unavailable(error.to_string()));
-                }
-            }
-        })
+    _cancel: Option<std::os::unix::net::UnixStream>,
+}
+
+impl Events {
+    pub(super) fn try_recv(&self) -> Result<Event, mpsc::TryRecvError> {
+        self.receiver.try_recv()
+    }
+}
+
+pub(super) fn subscribe() -> Events {
+    let (sender, events) = mpsc::sync_channel(32);
+    let mut events = Events {
+        receiver: events,
+        #[cfg(target_os = "linux")]
+        _cancel: None,
+    };
+    #[cfg(target_os = "linux")]
     {
-        let _ = sender.send(Event::Unavailable(error.to_string()));
+        let (cancel, stopped) = match std::os::unix::net::UnixStream::pair() {
+            Ok(pair) => pair,
+            Err(error) => {
+                let _ = sender.send(Event::Unavailable(error.to_string()));
+                return events;
+            }
+        };
+        events._cancel = Some(cancel);
+        if let Err(error) = std::thread::Builder::new()
+            .name("mpris-events".to_owned())
+            .spawn({
+                let sender = sender.clone();
+                move || {
+                    if let Err(error) = watch(&sender, &stopped) {
+                        let _ = sender.send(Event::Unavailable(error.to_string()));
+                    }
+                }
+            })
+        {
+            let _ = sender.send(Event::Unavailable(error.to_string()));
+        }
     }
     #[cfg(not(target_os = "linux"))]
     let _ = sender.send(Event::Unavailable("MPRIS requires Linux".to_owned()));
@@ -73,9 +100,15 @@ pub(super) fn subscribe() -> Receiver<Event> {
 const PLAYER_INTERFACE: &str = "org.mpris.MediaPlayer2.Player";
 
 #[cfg(target_os = "linux")]
-fn watch(sender: &SyncSender<Event>) -> Result<(), dbus::Error> {
+fn watch(
+    sender: &SyncSender<Event>,
+    stopped: &std::os::unix::net::UnixStream,
+) -> Result<(), dbus::Error> {
+    use std::os::fd::AsRawFd;
     let is_player = |name: &str| name.starts_with("org.mpris.MediaPlayer2.");
-    let bus = Connection::new_session()?;
+    let mut channel = dbus::channel::Channel::get_private(dbus::channel::BusType::Session)?;
+    channel.set_watch_enabled(true);
+    let bus = Connection::from(channel);
     let owner_rule = MatchRule::new_signal("org.freedesktop.DBus", "NameOwnerChanged")
         .with_sender("org.freedesktop.DBus");
     let player_rule = MatchRule::new_signal("org.freedesktop.DBus.Properties", "PropertiesChanged")
@@ -147,8 +180,32 @@ fn watch(sender: &SyncSender<Event>) -> Result<(), dbus::Error> {
                 }
             }
         }
+        let watch = bus.channel().watch();
+        let mut fds = [
+            libc::pollfd {
+                fd: watch.fd,
+                events: (if watch.read { libc::POLLIN } else { 0 })
+                    | (if watch.write { libc::POLLOUT } else { 0 }),
+                revents: 0,
+            },
+            libc::pollfd {
+                fd: stopped.as_raw_fd(),
+                events: libc::POLLIN,
+                revents: 0,
+            },
+        ];
+        if unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as _, -1) } < 0 {
+            let error = std::io::Error::last_os_error();
+            if error.kind() == std::io::ErrorKind::Interrupted {
+                continue;
+            }
+            return Err(dbus::Error::new_failed(&error.to_string()));
+        }
+        if fds[1].revents != 0 {
+            return Ok(());
+        }
         bus.channel()
-            .read_write(None)
+            .read_write(Some(Duration::ZERO))
             .map_err(|()| dbus::Error::new_failed("MPRIS session bus disconnected"))?;
     }
 }

@@ -1,3 +1,4 @@
+pub(crate) mod ipc;
 mod json;
 mod waybar;
 
@@ -16,5 +17,16 @@ pub(crate) fn create(
     match kind {
         OutputKind::Json => Box::new(json::JsonLines),
         OutputKind::Waybar => Box::new(waybar::Waybar::new(inactive_opacity, waybar_signal)),
+    }
+}
+
+pub(crate) fn create_ipc(options: &crate::options::Options) -> Box<dyn Output> {
+    match options.output {
+        OutputKind::Json => Box::new(ipc::Ipc),
+        OutputKind::Waybar => create(
+            options.output,
+            options.inactive_opacity,
+            options.waybar_signal,
+        ),
     }
 }

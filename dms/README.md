@@ -1,6 +1,6 @@
 # DMS
 
-DankMaterialShell 的 DankBar 插件，复用 Rust JSON 输出，支持逐字进度、翻译/音译、上下切换动画和封面。一个后台进程供所有 Bar 实例共用；目前支持横向 Bar。
+DankMaterialShell 的 DankBar 插件，支持逐字进度、翻译/音译、上下切换动画和封面。一个后台进程供所有 Bar 实例共用，配置与控制通过 IPC 传递，设置可实时更新；目前支持横向 Bar。
 
 ```bash
 cargo build --release --locked

@@ -12,12 +12,7 @@ local function publishError(message)
   })
 end
 
-local function onLine(line)
-  local frame = noctalia.json.decode(line)
-  if type(frame) == "table" then
-    noctalia.state.set(FRAME_KEY, frame)
-  end
-end
+local rpc = require("./ipc.luau")
 
 local function displayOptions()
   local widgets = noctalia.getSetting("widget")
@@ -51,51 +46,52 @@ local function displayOptions()
   return "start", true
 end
 
-local function stream(executable)
-  local baseUrl = noctalia.getConfig("base_url") or "http://127.0.0.1:14558"
-  local offset = tonumber(noctalia.getConfig("offset_ms")) or 0
+function onConfigChanged()
   local alignment, showCover = displayOptions()
-  local maxChars = tonumber(noctalia.getConfig("max_chars")) or 32
-  local subtitle = noctalia.getConfig("subtitle") or "auto"
-  local command = shellQuote(executable)
-    .. " --source splayer"
-    .. " --source-endpoint " .. shellQuote(baseUrl)
-    .. " --output json"
-    .. " --offset-ms " .. tostring(offset)
-    .. " --max-chars " .. tostring(maxChars)
-    .. " --align " .. alignment
-    .. " --subtitle " .. shellQuote(subtitle)
   local dataDir = noctalia.pluginDataDir()
-  if showCover and dataDir then
-    command = command .. " --cover-dir " .. shellQuote(dataDir .. "/covers")
-  end
-
-  if not noctalia.runStream(command, onLine) then
-    publishError(noctalia.tr("errors.stream_failed"))
-  end
+  rpc.call("config.update", {
+    source = "splayer",
+    source_endpoint = noctalia.getConfig("base_url") or "http://127.0.0.1:14558",
+    offset_ms = tonumber(noctalia.getConfig("offset_ms")) or 0,
+    max_chars = tonumber(noctalia.getConfig("max_chars")) or 32,
+    alignment = alignment,
+    subtitle = noctalia.getConfig("subtitle") or "auto",
+    cover_dir = showCover and dataDir and (dataDir .. "/covers") or "",
+  }, function(error)
+    if error then noctalia.log(error.message) end
+  end)
 end
-
-noctalia.state.set(FRAME_KEY, { visible = false })
-local pluginDir = noctalia.pluginDir()
-local executable = pluginDir and (pluginDir .. "/bin/bar-lyrics") or ""
 
 function onIpc(event, command)
   if event ~= "control" or (command ~= "toggle" and command ~= "previous" and command ~= "next") then return end
   local function fallback()
     noctalia.runAsync("noctalia msg media " .. command)
   end
-  if not noctalia.runAsync(shellQuote(executable)
-    .. " --source splayer --source-endpoint " .. shellQuote(noctalia.getConfig("base_url") or "http://127.0.0.1:14558")
-    .. " --control " .. shellQuote(command), function(result)
-      if result.exitCode ~= 0 then
-        noctalia.log(result.stderr)
-        fallback()
-      end
-    end) then fallback() end
+  if not rpc.address then fallback(); return end
+  rpc.call("player.control", { action = command }, function(error)
+    if error then
+      noctalia.log(error.message)
+      if error.code == -32001 or error.code == -32098 then fallback() end
+    end
+  end)
 end
 
+local function onLine(line)
+  local message = noctalia.json.decode(line)
+  if type(message) ~= "table" or message.jsonrpc ~= "2.0" then return end
+  if message.method == "ready" then
+    rpc.connect(message.params)
+    onConfigChanged()
+  elseif message.method == "frame" then
+    noctalia.state.set(FRAME_KEY, message.params)
+  end
+end
+
+noctalia.state.set(FRAME_KEY, { visible = false })
+local pluginDir = noctalia.pluginDir()
+local executable = pluginDir and (pluginDir .. "/bin/bar-lyrics") or ""
 if executable == "" or not noctalia.fileExists(executable) then
   publishError(noctalia.tr("errors.binary_missing"))
-else
-  stream(executable)
+elseif not noctalia.runStream("exec " .. shellQuote(executable), onLine) then
+  publishError(noctalia.tr("errors.stream_failed"))
 end

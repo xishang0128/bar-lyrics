@@ -26,7 +26,7 @@ noctalia msg plugins enable xishang0128/bar-lyrics
 
 Linux 通过 MPRIS 事件识别播放器并接入歌词源，需启用 SPlayer 的「系统媒体控制」；构建需安装 `dbus` 开发库和 `pkg-config`。
 
-Noctalia / DMS 的播放控制优先使用 SPlayer WS，失败后依次回退到 SPlayer MPRIS、平台通用媒体控制。
+Noctalia / DMS 的配置与播放控制通过 IPC 传递，支持配置热更新；播放控制优先使用 SPlayer WS，失败后依次回退到 SPlayer MPRIS、平台通用媒体控制。协议见 [IPC](docs/ipc.md)。
 
 ### Waybar
 
@@ -36,7 +36,7 @@ Noctalia / DMS 的播放控制优先使用 SPlayer WS，失败后依次回退到
 install -Dm755 target/release/bar-lyrics ~/.local/bin/bar-lyrics
 ```
 
-配置、样式和左右对齐方式见 [`examples/waybar`](examples/waybar/README.md)。
+配置、样式和左右对齐方式见 [`waybar`](waybar/README.md)。
 
 ### DMS
 
@@ -47,14 +47,18 @@ install -Dm755 target/release/bar-lyrics ~/.local/bin/bar-lyrics
 ```text
 noctalia/        Noctalia 清单、service、widget、sidecar 与翻译
 dms/             DMS 插件与安装说明
+waybar/          Waybar 配置与样式
 src/cover.rs     封面下载与缓存
 src/model.rs     与数据源、输出平台无关的领域模型
-src/options.rs   sidecar 启动参数
+src/options.rs   配置模型与校验
+src/cli.rs       兼容命令行入口
+src/ipc/         JSON-RPC 配置与播放控制
 src/source/      播放器与歌词数据源适配
 src/lyrics.rs    逐字时间轴、截断与显示分段
 src/engine.rs    播放状态、切换动画与显示帧
 src/output/      Bar 输出格式适配
-src/main.rs      流式输出循环
+src/runtime.rs   帧循环与动态配置
+src/main.rs      启动入口
 ```
 
 ## 开发验证

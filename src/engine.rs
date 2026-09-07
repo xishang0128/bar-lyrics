@@ -216,6 +216,21 @@ impl Engine {
         self.cover_cache.set_url("");
     }
 
+    pub(crate) fn set_cover_cache(
+        &mut self,
+        directory: Option<std::path::PathBuf>,
+        current: Option<std::path::PathBuf>,
+    ) {
+        self.cover_cache = CoverCache::new(directory, current);
+        let url = self
+            .playback
+            .as_ref()
+            .and_then(|playback| playback.track.as_ref())
+            .map(|track| track.cover.as_str())
+            .unwrap_or("");
+        self.cover_cache.set_url(url);
+    }
+
     pub(crate) fn take_source_update(&mut self) -> Result<bool, String> {
         self.source.take_update()
     }

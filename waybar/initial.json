@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","method":"config.update","params":{"source":"splayer","source_endpoint":"http://127.0.0.1:14558","output":"waybar","max_chars":32,"alignment":"start","inactive_opacity":45,"cover_dir":"/run/user/1000/bar-lyrics/covers","current_cover":"/run/user/1000/bar-lyrics-cover","waybar_signal":8}}

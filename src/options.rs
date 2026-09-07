@@ -1,17 +1,9 @@
-use std::env;
 use std::path::PathBuf;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-const USAGE: &str = "Usage: bar-lyrics [--source splayer] [--source-endpoint URL] \
-                    [--output json|waybar] [--offset-ms N] [--max-chars N] \
-                    [--align start|end] \
-                    [--subtitle auto|translation|romanization|hidden] \
-                    [--inactive-opacity N] [--cover-dir PATH] \
-                    [--current-cover PATH] [--waybar-signal N] [--once] \
-                    [--control play|pause|toggle|previous|next]";
-
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub(crate) enum Control {
     Play,
     Pause,
@@ -20,18 +12,20 @@ pub(crate) enum Control {
     Next,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub(crate) enum SourceKind {
     Splayer,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub(crate) enum OutputKind {
     Json,
     Waybar,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum Alignment {
     Start,
@@ -44,7 +38,8 @@ impl Alignment {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub(crate) enum SubtitleMode {
     Auto,
     Translation,
@@ -52,8 +47,9 @@ pub(crate) enum SubtitleMode {
     Hidden,
 }
 
+#[derive(Clone, PartialEq, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
 pub(crate) struct Options {
-    pub(crate) control: Option<Control>,
     pub(crate) source: SourceKind,
     pub(crate) source_endpoint: String,
     pub(crate) output: OutputKind,
@@ -65,13 +61,11 @@ pub(crate) struct Options {
     pub(crate) cover_dir: Option<PathBuf>,
     pub(crate) current_cover: Option<PathBuf>,
     pub(crate) waybar_signal: Option<u8>,
-    pub(crate) once: bool,
 }
 
 impl Default for Options {
     fn default() -> Self {
         Self {
-            control: None,
             source: SourceKind::Splayer,
             source_endpoint: "http://127.0.0.1:14558".to_owned(),
             output: OutputKind::Json,
@@ -83,111 +77,47 @@ impl Default for Options {
             cover_dir: None,
             current_cover: None,
             waybar_signal: None,
-            once: false,
         }
     }
 }
 
-pub(crate) fn parse() -> Result<Options, String> {
-    let mut options = Options::default();
-    let mut args = env::args().skip(1);
-
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "--control" => {
-                options.control = Some(match args.next().as_deref() {
-                    Some("play") => Control::Play,
-                    Some("pause") => Control::Pause,
-                    Some("toggle") => Control::Toggle,
-                    Some("previous") => Control::Previous,
-                    Some("next") => Control::Next,
-                    _ => {
-                        return Err(
-                            "--control needs play, pause, toggle, previous, or next".to_owned()
-                        );
-                    }
-                });
-            }
-            "--once" => options.once = true,
-            "--source" => {
-                options.source = match args.next().as_deref() {
-                    Some("splayer") => SourceKind::Splayer,
-                    _ => return Err("--source needs splayer".to_owned()),
-                };
-            }
-            "--source-endpoint" | "--base-url" => {
-                options.source_endpoint = args.next().ok_or("--source-endpoint needs a value")?;
-            }
-            "--output" => {
-                options.output = match args.next().as_deref() {
-                    Some("json") => OutputKind::Json,
-                    Some("waybar") => OutputKind::Waybar,
-                    _ => return Err("--output needs json or waybar".to_owned()),
-                };
-            }
-            "--offset-ms" => {
-                let value = args.next().ok_or("--offset-ms needs a value")?;
-                options.offset_ms = value.parse::<i64>().map_err(|_| "invalid --offset-ms")?;
-            }
-            "--max-chars" => {
-                let value = args.next().ok_or("--max-chars needs a value")?;
-                let max_chars = value.parse::<usize>().map_err(|_| "invalid --max-chars")?;
-                options.max_chars = max_chars.clamp(12, 80);
-            }
-            "--align" => {
-                options.alignment = match args.next().as_deref() {
-                    Some("start") => Alignment::Start,
-                    Some("end") => Alignment::End,
-                    _ => return Err("--align needs start or end".to_owned()),
-                };
-            }
-            "--subtitle" => {
-                options.subtitle = match args.next().as_deref() {
-                    Some("auto") => SubtitleMode::Auto,
-                    Some("translation") => SubtitleMode::Translation,
-                    Some("romanization") => SubtitleMode::Romanization,
-                    Some("hidden") => SubtitleMode::Hidden,
-                    _ => {
-                        return Err(
-                            "--subtitle needs auto, translation, romanization, or hidden"
-                                .to_owned(),
-                        );
-                    }
-                };
-            }
-            "--inactive-opacity" => {
-                let value = args.next().ok_or("--inactive-opacity needs a value")?;
-                let opacity = value
-                    .parse::<u8>()
-                    .map_err(|_| "invalid --inactive-opacity")?;
-                options.inactive_opacity = opacity.clamp(10, 90);
-            }
-            "--cover-dir" => {
-                options.cover_dir = Some(PathBuf::from(
-                    args.next().ok_or("--cover-dir needs a path")?,
-                ));
-            }
-            "--current-cover" => {
-                options.current_cover = Some(PathBuf::from(
-                    args.next().ok_or("--current-cover needs a path")?,
-                ));
-            }
-            "--waybar-signal" => {
-                let value = args.next().ok_or("--waybar-signal needs a value")?;
-                let signal = value.parse::<u8>().map_err(|_| "invalid --waybar-signal")?;
-                if !(1..=30).contains(&signal) {
-                    return Err("--waybar-signal needs a value from 1 to 30".to_owned());
-                }
-                options.waybar_signal = Some(signal);
-            }
-            "-h" | "--help" => {
-                println!("{USAGE}");
-                std::process::exit(0);
-            }
-            _ => return Err(format!("unknown argument: {arg}")),
+impl Options {
+    pub(crate) fn updated(&self, patch: serde_json::Value) -> Result<Self, String> {
+        let patch = patch.as_object().ok_or("configuration must be an object")?;
+        let mut value = serde_json::to_value(self).map_err(|error| error.to_string())?;
+        value.as_object_mut().unwrap().extend(patch.clone());
+        let mut options: Self = serde_json::from_value(value).map_err(|error| error.to_string())?;
+        options.source_endpoint = options.source_endpoint.trim_end_matches('/').to_owned();
+        if options
+            .cover_dir
+            .as_ref()
+            .is_some_and(|path| path.as_os_str().is_empty())
+        {
+            options.cover_dir = None;
         }
+        if options
+            .current_cover
+            .as_ref()
+            .is_some_and(|path| path.as_os_str().is_empty())
+        {
+            options.current_cover = None;
+        }
+        let uri = options
+            .source_endpoint
+            .parse::<tungstenite::http::Uri>()
+            .map_err(|error| error.to_string())?;
+        if !matches!(uri.scheme_str(), Some("http" | "https")) || uri.host().is_none() {
+            return Err("source_endpoint must be an absolute HTTP(S) URL".to_owned());
+        }
+        if !(12..=80).contains(&options.max_chars)
+            || !(10..=90).contains(&options.inactive_opacity)
+            || !(-10000..=10000).contains(&options.offset_ms)
+            || options
+                .waybar_signal
+                .is_some_and(|signal| !(1..=30).contains(&signal))
+        {
+            return Err("configuration value out of range".to_owned());
+        }
+        Ok(options)
     }
-
-    options.source_endpoint = options.source_endpoint.trim_end_matches('/').to_owned();
-    Ok(options)
 }

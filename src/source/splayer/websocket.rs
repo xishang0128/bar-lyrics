@@ -1,4 +1,6 @@
+use std::net::{Shutdown, TcpStream};
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -18,22 +20,42 @@ pub(super) struct UpdateWatcher {
     receiver: Receiver<UpdateEvent>,
     connected: bool,
     last_error: String,
+    connection: Arc<Mutex<Connection>>,
+}
+
+#[derive(Default)]
+struct Connection {
+    stopped: bool,
+    stream: Option<TcpStream>,
+}
+
+impl Drop for UpdateWatcher {
+    fn drop(&mut self) {
+        let mut connection = self.connection.lock().unwrap();
+        connection.stopped = true;
+        if let Some(stream) = connection.stream.take() {
+            let _ = stream.shutdown(Shutdown::Both);
+        }
+    }
 }
 
 impl UpdateWatcher {
     pub(super) fn connect(base_url: &str, events: Receiver<()>) -> Result<Self, String> {
         let url = websocket_url(base_url)?;
         let (sender, receiver) = mpsc::channel();
+        let connection = Arc::new(Mutex::new(Connection::default()));
         thread::Builder::new()
             .name("splayer-websocket".to_owned())
             .spawn({
                 let url = url.clone();
-                move || watch_updates(&url, sender, events)
+                let connection = connection.clone();
+                move || watch_updates(&url, sender, events, connection)
             })
             .map_err(|error| format!("start SPlayer WebSocket watcher: {error}"))?;
 
         Ok(Self {
             receiver,
+            connection,
             connected: false,
             last_error:
                 "waiting for SPlayer WebSocket; enable WebSocket in SPlayer external API settings"
@@ -86,11 +108,34 @@ pub(super) fn websocket_url(base_url: &str) -> Result<String, String> {
     Err("SPlayer endpoint must start with http:// or https://".to_owned())
 }
 
-fn watch_updates(url: &str, sender: Sender<UpdateEvent>, events: Receiver<()>) {
+fn watch_updates(
+    url: &str,
+    sender: Sender<UpdateEvent>,
+    events: Receiver<()>,
+    connection: Arc<Mutex<Connection>>,
+) {
     let mut attempts = WS_CONNECT_ATTEMPTS;
     loop {
+        if connection.lock().unwrap().stopped {
+            return;
+        }
         let disconnected = match connect(url) {
             Ok((mut socket, _)) => {
+                {
+                    let mut connection = connection.lock().unwrap();
+                    if connection.stopped {
+                        return;
+                    }
+                    connection.stream = match socket.get_ref() {
+                        tungstenite::stream::MaybeTlsStream::Plain(stream) => {
+                            stream.try_clone().ok()
+                        }
+                        tungstenite::stream::MaybeTlsStream::NativeTls(stream) => {
+                            stream.get_ref().try_clone().ok()
+                        }
+                        _ => None,
+                    };
+                }
                 attempts = WS_CONNECT_ATTEMPTS;
                 if sender.send(UpdateEvent::Connected).is_err() {
                     return;
