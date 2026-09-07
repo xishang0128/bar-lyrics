@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Services
 import qs.Modules.Plugins
 
 PluginComponent {
@@ -27,6 +28,31 @@ PluginComponent {
     onArgumentsChanged: {
         if (ready)
             restartDelay.restart();
+    }
+
+    function control(action) {
+        if (!controller.running) {
+            controller.command = [root.arguments[0], "--source", "splayer", "--source-endpoint", pluginData.base_url ?? "http://127.0.0.1:14558", "--control", action];
+            controller.running = true;
+        }
+    }
+
+    Process {
+        id: controller
+        onExited: (code, status) => {
+            if (code === 0) return;
+            const player = MprisController.activePlayer;
+            const action = command[command.length - 1];
+            if (action === "toggle" && player?.canTogglePlaying)
+                player.togglePlaying();
+            else if (action === "previous" && player?.canGoPrevious)
+                player.previous();
+            else if (action === "next" && player?.canGoNext)
+                player.next();
+        }
+        stderr: SplitParser {
+            onRead: data => console.warn("Bar Lyrics:", data)
+        }
     }
 
     Timer {

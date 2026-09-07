@@ -5,7 +5,26 @@ use std::net::IpAddr;
 use std::sync::mpsc::{self, Receiver, SyncSender};
 
 use crate::model::{LyricsSnapshot, PlaybackSnapshot};
-use crate::options::SourceKind;
+use crate::options::{Control, SourceKind};
+
+pub(crate) fn control(
+    kind: SourceKind,
+    endpoint: &str,
+    mut command: Control,
+) -> Result<(), String> {
+    let result = match kind {
+        SourceKind::Splayer => splayer::control(endpoint, &mut command),
+    };
+    if let Err(error) = result {
+        if !is_local_endpoint(endpoint) {
+            return Err(error);
+        }
+        eprintln!("bar-lyrics: {error}; falling back to source-specific MPRIS");
+        return mpris::control(kind, command)
+            .map_err(|fallback| format!("{error}; MPRIS fallback: {fallback}"));
+    }
+    Ok(())
+}
 
 pub(crate) trait Source {
     fn now_playing(&mut self) -> Result<PlaybackSnapshot, String>;

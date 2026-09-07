@@ -78,6 +78,22 @@ end
 noctalia.state.set(FRAME_KEY, { visible = false })
 local pluginDir = noctalia.pluginDir()
 local executable = pluginDir and (pluginDir .. "/bin/bar-lyrics") or ""
+
+function onIpc(event, command)
+  if event ~= "control" or (command ~= "toggle" and command ~= "previous" and command ~= "next") then return end
+  local function fallback()
+    noctalia.runAsync("noctalia msg media " .. command)
+  end
+  if not noctalia.runAsync(shellQuote(executable)
+    .. " --source splayer --source-endpoint " .. shellQuote(noctalia.getConfig("base_url") or "http://127.0.0.1:14558")
+    .. " --control " .. shellQuote(command), function(result)
+      if result.exitCode ~= 0 then
+        noctalia.log(result.stderr)
+        fallback()
+      end
+    end) then fallback() end
+end
+
 if executable == "" or not noctalia.fileExists(executable) then
   publishError(noctalia.tr("errors.binary_missing"))
 else

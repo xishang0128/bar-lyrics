@@ -57,11 +57,11 @@ entry = "widget.luau"
 
   [widget.actions]
   left = "panel-toggle control-center media"
-  right = "media toggle"
-  back = "media previous"
-  forward = "media next"
-  scroll_up = "media previous"
-  scroll_down = "media next"
+  right = "plugin xishang0128/bar-lyrics:bridge all control toggle"
+  back = "plugin xishang0128/bar-lyrics:bridge all control previous"
+  forward = "plugin xishang0128/bar-lyrics:bridge all control next"
+  scroll_up = "plugin xishang0128/bar-lyrics:bridge all control previous"
+  scroll_down = "plugin xishang0128/bar-lyrics:bridge all control next"
 
   [[widget.setting]]
   key = "single_line_font_size"

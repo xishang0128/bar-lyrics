@@ -8,7 +8,17 @@ const USAGE: &str = "Usage: bar-lyrics [--source splayer] [--source-endpoint URL
                     [--align start|end] \
                     [--subtitle auto|translation|romanization|hidden] \
                     [--inactive-opacity N] [--cover-dir PATH] \
-                    [--current-cover PATH] [--waybar-signal N] [--once]";
+                    [--current-cover PATH] [--waybar-signal N] [--once] \
+                    [--control play|pause|toggle|previous|next]";
+
+#[derive(Clone, Copy)]
+pub(crate) enum Control {
+    Play,
+    Pause,
+    Toggle,
+    Previous,
+    Next,
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SourceKind {
@@ -43,6 +53,7 @@ pub(crate) enum SubtitleMode {
 }
 
 pub(crate) struct Options {
+    pub(crate) control: Option<Control>,
     pub(crate) source: SourceKind,
     pub(crate) source_endpoint: String,
     pub(crate) output: OutputKind,
@@ -60,6 +71,7 @@ pub(crate) struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
+            control: None,
             source: SourceKind::Splayer,
             source_endpoint: "http://127.0.0.1:14558".to_owned(),
             output: OutputKind::Json,
@@ -82,6 +94,20 @@ pub(crate) fn parse() -> Result<Options, String> {
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--control" => {
+                options.control = Some(match args.next().as_deref() {
+                    Some("play") => Control::Play,
+                    Some("pause") => Control::Pause,
+                    Some("toggle") => Control::Toggle,
+                    Some("previous") => Control::Previous,
+                    Some("next") => Control::Next,
+                    _ => {
+                        return Err(
+                            "--control needs play, pause, toggle, previous, or next".to_owned()
+                        );
+                    }
+                });
+            }
             "--once" => options.once = true,
             "--source" => {
                 options.source = match args.next().as_deref() {

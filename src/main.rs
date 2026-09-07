@@ -16,6 +16,9 @@ const POSITION_RESYNC_INTERVAL: Duration = Duration::from_secs(1);
 
 fn run() -> Result<(), String> {
     let options = options::parse()?;
+    if let Some(command) = options.control {
+        return source::control(options.source, &options.source_endpoint, command);
+    }
     let source = source::create(options.source, &options.source_endpoint, !options.once)?;
     let mut output = output::create(
         options.output,

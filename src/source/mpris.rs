@@ -1,4 +1,41 @@
+use crate::options::{Control, SourceKind};
 use std::sync::mpsc::{self, Receiver};
+
+#[cfg(target_os = "linux")]
+pub(super) fn control(kind: SourceKind, command: Control) -> Result<(), String> {
+    let bus = Connection::new_session().map_err(|error| error.to_string())?;
+    let proxy = bus.with_proxy(
+        "org.freedesktop.DBus",
+        "/org/freedesktop/DBus",
+        Duration::from_secs(2),
+    );
+    let (names,): (Vec<String>,) = proxy
+        .method_call("org.freedesktop.DBus", "ListNames", ())
+        .map_err(|error| error.to_string())?;
+    let mut players = names
+        .into_iter()
+        .filter(|name| super::player_source(name) == Some(kind));
+    let name = players.next().ok_or("no matching player")?;
+    if players.next().is_some() {
+        return Err("multiple matching players; refusing ambiguous control".to_owned());
+    }
+    let proxy = bus.with_proxy(name, "/org/mpris/MediaPlayer2", Duration::from_secs(2));
+    let method = match command {
+        Control::Play => "Play",
+        Control::Pause => "Pause",
+        Control::Toggle => "PlayPause",
+        Control::Previous => "Previous",
+        Control::Next => "Next",
+    };
+    proxy
+        .method_call::<(), _, _, _>(PLAYER_INTERFACE, method, ())
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(not(target_os = "linux"))]
+pub(super) fn control(_kind: SourceKind, _command: Control) -> Result<(), String> {
+    Err("MPRIS requires Linux".to_owned())
+}
 
 #[cfg(target_os = "linux")]
 use {

@@ -32,11 +32,7 @@ PluginComponent {
         scrollReset.restart();
         if (Math.abs(scrollDelta) < 120)
             return;
-        const player = MprisController.activePlayer;
-        if (scrollDelta > 0 && player?.canGoPrevious)
-            player.previous();
-        else if (scrollDelta < 0 && player?.canGoNext)
-            player.next();
+        root.bridge?.control(scrollDelta > 0 ? "previous" : "next");
         scrollDelta %= 120;
     }
 
@@ -75,11 +71,7 @@ PluginComponent {
 
     pillClickAction: (x, y, width, section, screen) => PopoutService.toggleDankDash("media", x, y, width, section, screen)
 
-    pillRightClickAction: () => {
-        const player = MprisController.activePlayer;
-        if (player?.canTogglePlaying)
-            player.togglePlaying();
-    }
+    pillRightClickAction: () => root.bridge?.control("toggle")
 
     horizontalBarPill: Component {
         Item {

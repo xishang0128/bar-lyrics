@@ -26,6 +26,8 @@ noctalia msg plugins enable xishang0128/bar-lyrics
 
 Linux 通过 MPRIS 事件识别播放器并接入歌词源，需启用 SPlayer 的「系统媒体控制」；构建需安装 `dbus` 开发库和 `pkg-config`。
 
+Noctalia / DMS 的播放控制优先使用 SPlayer WS，失败后依次回退到 SPlayer MPRIS、平台通用媒体控制。
+
 ### Waybar
 
 先安装二进制：
